@@ -1,0 +1,2 @@
+dist(300.0, to_float(x), 400.0, to_float(y)) >= (radius - thickness/2.0) \    
+//||    dist(300.0, to_float(x), 400.0, to_float(y)) <= (radius + thickness/2.0) \

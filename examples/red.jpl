@@ -1,0 +1,10 @@
+type pict = {float, float, float, float}[,]
+
+
+fn red(H: int, W: int) : pict {
+    return array[x : H, y : W]{1.0, 0.0, 0., 1.0}
+}
+
+
+write image red(600, 800) to "red.png"
+

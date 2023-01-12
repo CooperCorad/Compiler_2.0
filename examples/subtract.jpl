@@ -1,0 +1,5 @@
+fn subtract(first : float, second : float) : float {
+    return first - second
+}
+
+show subtract(1000000000.0 , 0.1)
