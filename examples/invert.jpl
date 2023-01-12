@@ -1,0 +1,12 @@
+type pict = {float, float, float, float}[,]
+
+
+fn invert(pic : pict) : pict {
+
+    return array[i : H, j : W] {1.0 - pic[i,j][0], 1.0 - pic[i,j][1], 1.0 - pic[i,j][2], 1.0}
+
+}
+
+
+read image "sample.png" to pic
+write image invert(pic) to "sample-inverted.png"
