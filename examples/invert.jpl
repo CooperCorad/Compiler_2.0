@@ -1,9 +1,13 @@
-type pict = {float, float, float, float}[,]
+type pixel = {float, float, float, float}
+type pict = pixel[,]
 
+fn manipilate (pix : pixel) : pixel {
+    return {1.0 - pix{0}, 1.0 - pix{1}, 1.0 - pix{2}, 1.0}
+}
 
-fn invert(pic : pict) : pict {
+fn invert(pic[H, W] : pict) : pict {
 
-    return array[i : H, j : W] {1.0 - pic[i,j][0], 1.0 - pic[i,j][1], 1.0 - pic[i,j][2], 1.0}
+    return array[i : H, j : W] manipilate(pic[i,j])
 
 }
 
