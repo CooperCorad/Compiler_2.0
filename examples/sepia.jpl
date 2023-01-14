@@ -1,0 +1,27 @@
+type pixel = {float, float, float, float}
+type pict = pixel[,]
+
+
+
+
+fn manipilate (pix : pixel) : pixel {
+
+    let old_R = pix{0}
+    let old_G = pix{1}
+    let old_B = pix{2}
+
+    return {0.393 * old_R + 0.769 * old_G + 0.189 * old_B,\
+    0.349 * old_R + 0.686 * old_G + 0.168 * old_B,\
+    0.272 * old_R + 0.534 * old_G + 0.131 * old_B,\
+    1.0}
+}
+
+
+
+fn sepia(pic[H, W] : pict) : pict{
+    return array[i : H, j : W] manipilate(pic[i,j])
+}
+
+
+read image "sample.png" to pic
+write image sepia(pic) to "sample-sepia.png"
