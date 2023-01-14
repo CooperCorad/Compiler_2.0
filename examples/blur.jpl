@@ -4,12 +4,15 @@ type pict = pixel[,]
 fn manipilate (pic[H, W] : pict, i : int, j : int) : pixel {
     let limi = if (i == 0) || (i == H - 1) then 2 else 3
     let limj = if (j == 0) || (j == W - 1) then 2 else 3
+
     let ii   = if (i == 0) then i else i - 1
     let jj   = if (j == 0) then j else j - 1
 
-    let area_R = sum[y : ii + limi, x : jj + limj] pic[y + ii, x + jj]{0} / (to_float(limi) * to_float(limj))
-    let area_G = sum[y : ii + limi, x : jj + limj] pic[y + ii, x + jj]{1} / (to_float(limi) * to_float(limj))
-    let area_B = sum[y : ii + limi, x : jj + limj] pic[y + ii, x + jj]{1} / (to_float(limi) * to_float(limj))
+    let area = to_float(limi * limj)
+
+    let area_R = sum[y : ii + limi - 1, x : jj + limj - 1] pic[y + ii, x + jj]{0} / area
+    let area_G = sum[y : ii + limi - 1, x : jj + limj - 1] pic[y + ii, x + jj]{1} / area
+    let area_B = sum[y : ii + limi - 1, x : jj + limj - 1] pic[y + ii, x + jj]{1} / area
 
     return {area_R, area_G, area_B, 1.0}
 
