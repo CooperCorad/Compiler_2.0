@@ -6,8 +6,8 @@ fn dist(x1 : float, x2 : float, y1 : float, y2 : float) : float {
 
 fn circle(radius: float, thickness: float) : pict {
     return array[y : 600, x : 800] \
-    if dist(300.0, to_float(y), 400.0, to_float(x)) <= (radius + thickness/2.0) &&\
-    dist(300.0, to_float(y), 400.0, to_float(x)) >= (radius - thickness/2.0)\
+    if dist(300.0, to_float(y), 400.0, to_float(x)) < (radius + thickness/2.0) &&\
+    dist(300.0, to_float(y), 400.0, to_float(x)) > (radius - thickness/2.0)\
     then {1.0,1.0,1.0,1.0} \
     else {0.0,0.0,0.0,1.0}
 }
