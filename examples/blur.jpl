@@ -10,9 +10,9 @@ fn manipilate (pic[H, W] : pict, i : int, j : int) : pixel {
 
     let area = to_float(limi * limj)
 
-    let area_R = sum[y : ii + limi - 1, x : jj + limj - 1] pic[y, x]{0} / area    // -1 ??
-    let area_G = sum[y : ii + limi - 1, x : jj + limj - 1] pic[y, x]{1} / area
-    let area_B = sum[y : ii + limi - 1, x : jj + limj - 1] pic[y, x]{1} / area
+    let area_R = sum[y : limi, x : limj] pic[y + ii, x + jj]{0} / area    // -1 ??
+    let area_G = sum[y : limi, x : limj] pic[y + ii, x + jj]{1} / area
+    let area_B = sum[y : limi, x : limj] pic[y + ii, x + jj]{1} / area
 
     return {area_R, area_G, area_B, 1.0}
 
