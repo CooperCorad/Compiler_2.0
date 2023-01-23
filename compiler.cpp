@@ -52,7 +52,7 @@ int fileSize;
 
 
 int lexWhiteSpace(int index){
-    
+
     bool hasNL = false;
 
     while(index < fileSize){
@@ -62,14 +62,14 @@ int lexWhiteSpace(int index){
         }
         else if(file[index] == '/'){
             if(file[index + 1] == '/'){
-                while(file[index] != '\n'){
+                while(file[index] != '\n' && index < fileSize){
                     index++;
                 }
                 index++;
             }
             else if(file[index + 1] == '*'){
                 index += 2;
-                while(file[index] != '*' && file[index + 1] != '/'){
+                while(file[index] != '*' && file[index + 1] != '/' && index < fileSize){
                     index++;
                 }
                 index += 3;
@@ -96,7 +96,6 @@ int lexWhiteSpace(int index){
         }
         // index++;
     }
-    
     return index;
 }
 
@@ -286,7 +285,7 @@ std::vector<token> lexer(){
         index = lexWhiteSpace(info.second);
     }
     
-    if(tokens.back().t != tokType::END_OF_FILE){
+    if(tokens.size() > 0 && tokens.back().t != tokType::END_OF_FILE){
         tokens.push_back(token{tokType::END_OF_FILE, index, "EOF"});
     }
     return tokens;
