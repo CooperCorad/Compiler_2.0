@@ -70,10 +70,16 @@ int lexWhiteSpace(int index){
             else if(file[index + 1] == '*'){
                 index += 2;
                 while(file[index] != '*' && file[index + 1] != '/' && index < fileSize){
+                    if(index == fileSize -1){
+                        throw(LexerException("No end to the multiline comment!"));
+                    }
                     index++;
                 }
                 index += 3;
 
+            }
+            else{
+                index++;
             }
         }
         else if(file[index] == '\\' && file[index] != '\n'){
@@ -118,10 +124,10 @@ std::pair<token, int> lexPunct(int index){
     std::string tokStr = PUNCTMatch[0];
     int newIndex = index + tokStr.size();
 
+
     if(tokStr.size() == 0){
         throw LexerException(makeError((char*)"unable to find punctuation at ", originalI));
     }
-
     return std::make_pair(token{stringToTok[tokStr], newIndex, tokStr}, newIndex);
 }
 
@@ -138,7 +144,14 @@ std::pair<token, int> lexSTR(int index){
         tokStr += '"';
         index++;
     }
-    while((file[index] == 10 || (file[index] >= 32 && file[index] <= 126)) && file[index] != '\"' && index < fileSize){
+    if(file[index] == '\n'){
+        throw LexerException("Cannot have an escape characrer in your string!");
+    }
+    while((file[index] >= 32 && file[index] <= 126) && file[index] != '\"' && index < fileSize){
+        if(file[index] == '\n'){
+            throw LexerException("Cannot have an escape characrer in your string!");
+        }
+
         tokStr += file[index];
         index++;
     } 
