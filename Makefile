@@ -5,13 +5,8 @@ CXXFLAGS=-Og -std=c++17 -Werror -Wall -fsanitize=address,undefined -fno-sanitize
 
 all: run
 
-compile: compiler.o
-
-compiler.o: compiler.cpp
-	$(CXX) $(CXXFLAGS) -c compiler.cpp -o compiler.o
-
-a.out: compiler.o
-	$(CXX) $(CXXFLAGS) compiler.o -o a.out
+compiler: compiler.cpp
+	$(CXX) $(CXXFLAGS) -o a.out compiler.cpp 
 
 run: a.out
 	./a.out $(TEST)

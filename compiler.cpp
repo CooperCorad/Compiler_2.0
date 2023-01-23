@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string.h>
 #include <vector>
-#include <unordered_map>
+#include <map>
 #include <regex>
 #include <iostream>
 #include <fstream>
@@ -9,7 +9,7 @@
 
 using namespace std;
 
-class LexerException : public exception {
+class LexerException : public std::exception {
     private:
         const char* message;
 
@@ -27,7 +27,7 @@ WRITE, COLON, LCURLY, RCURLY, LPAREN, RPAREN, COMMA,
 LSQUARE, RSQUARE, EQUALS, STRING, INTVAL, FLOATVAL, VARIABLE, 
 OP, NEWLINE, END_OF_FILE};
 
-unordered_map<string, tokType> stringToTok = { { "array", tokType::ARRAY }, { "assert", tokType::ASSERT },
+std::map<std::string, tokType> stringToTok = { { "array", tokType::ARRAY }, { "assert", tokType::ASSERT },
 { "bool", tokType::BOOL }, { "else", tokType::ELSE }, { "false", tokType::FALSE }, { "float", tokType::FLOAT },
 { "fn", tokType::FN }, { "if", tokType::IF }, { "image", tokType::IMAGE }, { "int", tokType::INT },
 { "let", tokType::LET }, { "print", tokType::PRINT }, { "read", tokType::READ }, { "return", tokType::RETURN },
@@ -100,11 +100,10 @@ int lexWhiteSpace(int index){
     return index;
 }
 
-const char* makeError(char* msg, int index){
-    
-    char temp[10000 + sizeof(char)];
-    to_chars(temp, temp + 10000, index);    
-    char const* ret = strcat(msg, temp);
+const char* makeError(string msg, int index){
+    string temp = to_string(index);
+    msg += temp;
+    const char* ret = msg.c_str();
 
     return ret;
 }
@@ -112,19 +111,19 @@ const char* makeError(char* msg, int index){
 
 std::pair<token, int> lexPunct(int index){
     int originalI = index;
-    regex regPUNCT ("^[\\:\\{\\}\\(\\)\\[\\],=]");
-    smatch PUNCTMatch;
-    string sub = file.substr(index);
+    std::regex regPUNCT ("^[\\:\\{\\}\\(\\)\\[\\],=]");
+    std::smatch PUNCTMatch;
+    std::string sub = file.substr(index);
 
-    regex_search(sub, PUNCTMatch, regPUNCT);
-    string tokStr = PUNCTMatch[0];
+    std::regex_search(sub, PUNCTMatch, regPUNCT);
+    std::string tokStr = PUNCTMatch[0];
     int newIndex = index + tokStr.size();
 
-    if(!tokStr.size()){
+    if(tokStr.size() == 0){
         throw LexerException(makeError((char*)"unable to find punctuation at ", originalI));
     }
 
-    return make_pair(token{stringToTok[tokStr], newIndex, tokStr}, newIndex);
+    return std::make_pair(token{stringToTok[tokStr], newIndex, tokStr}, newIndex);
 }
 
 
@@ -156,82 +155,85 @@ std::pair<token, int> lexSTR(int index){
 
 std::pair<token, int> lexVAR(int index){
     int originalI = index;
-    std::regex regVAR("^[A-Za-z]+[A-Za-z0-9_\\.]*$");
-    string sub = file.substr(index);
-    smatch VARmatch;
+    std::regex regVAR("^[A-Za-z]+[A-Za-z0-9_\\.]*");
+    std::string sub = file.substr(index);
+    std::smatch VARmatch;
 
     regex_search(sub, VARmatch, regVAR);
 
-    if(!string(VARmatch[0]).size()){
+    if(!std::string(VARmatch[0]).size()){
         //TODO throw
         throw LexerException(makeError((char*)"unable to find a variable at: ", originalI));
     }
 
-    string tokStr = string(VARmatch[0]);
+    std::string tokStr = std::string(VARmatch[0]);
     int newindex = (int) tokStr.size() + index;
 
-    return make_pair(token{tokType::VARIABLE, newindex, tokStr}, newindex);
+    return std::make_pair(token{tokType::VARIABLE, newindex, tokStr}, newindex);
 
 }
 
 std::pair<token, int> lexOP(int index){
     int originalI = index;
-    std::regex regOP("^(&&)|(\\|\\|)|(<=)|(>=)|(<)|(>)|(==)|(!=)|(\\+)|(-)|(\\*)|(\\/)|(%)|(!)");
-    string sub = file.substr(index);
-    smatch OPmatch;
+    std::regex regOP("^((&&)|(\\|\\|)|(<=)|(>=)|(<)|(>)|(==)|(!=)|(\\+)|(-)|(\\*)|(\\/)|(%)|(!))");
+    std::string sub = file.substr(index);
+    std::smatch OPmatch;
 
     regex_search(sub, OPmatch, regOP);
-    string tokStr = string(OPmatch[0]);    
+    std::string tokStr = std::string(OPmatch[0]);    
     int newIndex = index + (int)tokStr.size();
 
-    if(!string(OPmatch[0]).size()){
+    if(!std::string(OPmatch[0]).size()){
         // TODO throw error
         throw LexerException(makeError((char*)"unable to find a operator at: ", originalI));
 
     }
-    return make_pair(token{tokType::OP, newIndex, tokStr}, newIndex);
+    return std::make_pair(token{tokType::OP, newIndex, tokStr}, newIndex);
 
 }
 
 std::pair<token, int> lexKeyWord(int index){
     int originalI = index;
-    std::regex regKeyword("(array)|(assert)|(bool)|(else)|(false)|(float)|(fn)|(if)|(image)|(int)|(let)|(print)|(read)|(return)|(show)|(sum)|(then)|(time)|(to)|(true)|(type)|(write)");
-    smatch keywordmatch;
-    string sub = file.substr(index);
+    std::regex regKeyword("^((array)|(assert)|(bool)|(else)|(false)|(float)|(fn)|(if)|(image)|(int)|(let)|(print)|(read)|(return)|(show)|(sum)|(then)|(time)|(to)|(true)|(type)|(write))");
+    std::smatch keywordmatch;
+    std::string sub = file.substr(index);
 
     regex_search(sub, keywordmatch, regKeyword);
-    string tokStr = string(keywordmatch[0]);
+    std::string tokStr = std::string(keywordmatch[0]);
     int newIndex = index + (int)tokStr.size();
 
-    if(!tokStr.size()){ // TODO throw!! if the size is 0
+    if(tokStr.size() == 0){ // TODO throw!! if the size is 0
         throw LexerException(makeError((char*)"unable to find a keyword at: ", originalI));
     }
-    return make_pair(token{stringToTok[tokStr], newIndex, tokStr}, newIndex);
+
+
+    return std::make_pair(token{stringToTok[tokStr], newIndex, tokStr}, newIndex);
 
 }
 
 std::pair<token, int> lexNum(int index){
     int originalI = index;
-    std::regex regFloat ("(^[0-9]+\\.[0-9]*$)|(^[0-9]*\\.[0-9]+$)");
-    std::regex regInt ("^[0-9]+$");
+    std::regex regFloat ("(^[0-9]+\\.[0-9]*)|(^[0-9]*\\.[0-9]+)");
+    std::regex regInt ("^[0-9]+");
     std::smatch floatMatch;
     std::smatch intMatch;
-    string sub = file.substr(index);
+    std::string sub = file.substr(index);
 
-    regex_search(sub, floatMatch, regFloat);
-    regex_search(sub, intMatch, regInt);
+    std::regex_search(sub, floatMatch, regFloat);
+    std::regex_search(sub, intMatch, regInt);
+    string floatStr = string(floatMatch[0]);
+    string intStr = string(intMatch[0]);
 
-    if(!string(floatMatch[0]).size() && !string(intMatch[0]).size()){
-        // TODO  throw
-
+    if(floatStr.size() == 0 && intStr.size() == 0){
         throw LexerException(makeError((char*)"Unable to find a number at ", originalI));
     }
-    else if(string(floatMatch[0]).size()){ // if the program has a match 
-        string tokstr = string(floatMatch[0]);
+    else if(std::string(floatMatch[0]).size()){ // if the program has a match 
+        std::string tokstr = std::string(floatMatch[0]);
         int newIndex = (int)tokstr.size() + index;
         return std::make_pair(token{tokType::FLOATVAL, newIndex, tokstr}, newIndex);
     }
-    string tokstr = string(intMatch[0]);
+
+    std::string tokstr = std::string(intMatch[0]);
     int newIndex = (int)tokstr.size() + index;
     return std::make_pair(token{tokType::INTVAL, newIndex, tokstr}, newIndex);
     
@@ -239,7 +241,7 @@ std::pair<token, int> lexNum(int index){
 
 
 std::pair<token, int> tryLex(int index){
-    pair<token, int> ret;
+    std::pair<token, int> ret;
     try{
         ret = lexNum(index);
     }
@@ -283,7 +285,10 @@ std::vector<token> lexer(){
         tokens.push_back(info.first);
         index = lexWhiteSpace(info.second);
     }
-
+    
+    if(tokens.back().t != tokType::END_OF_FILE){
+        tokens.push_back(token{tokType::END_OF_FILE, index, "EOF"});
+    }
     return tokens;
 }
 
@@ -300,6 +305,7 @@ int main(int argc, char **argv) {
         flag = argv[2];
         filespec = argv[1];
     }
+
 
 
     std::string currline;
@@ -323,15 +329,145 @@ int main(int argc, char **argv) {
             std::vector<token> tokens = lexer();
         }
         catch(LexerException lexep){
-            cout << "Compilation failed" << endl;
+            std::cout << "Compilation failed" << lexep.what() << std::endl;
+            exit(0);
         }
 
         std::vector<token>::iterator ptr;
 
         for(ptr = tokens.begin(); ptr < tokens.end(); ptr++){
-            std::cout << ptr->t << " \'" << ptr->text << "\'\n";
-        }
+            if(ptr->t == tokType::NEWLINE){
 
+                std::cout << "NEWLINE" << std::endl;
+            } 
+            else if(ptr->t == tokType::END_OF_FILE){
+                std::cout << "END_OF_FILE" << std::endl;
+            }
+            else{
+                string tok = "def";
+                
+                switch(ptr->t){
+                    case 0:
+                        tok = "ARRAY";
+                        break;
+                    case 1:
+                        tok = "ASSERT";
+                        break;
+                    case 2:
+                        tok = "BOOL";
+                        break;
+                    case 3:
+                        tok = "ELSE";
+                        break;
+                    case 4:
+                        tok = "FALSE";
+                        break;
+                    case 5:
+                        tok = "FLOAT";
+                        break;
+                    case 6:
+                        tok = "FN";
+                        break;
+                    case 7:
+                        tok = "IF";
+                        break;
+                    case 8:
+                        tok = "IMAGE";
+                        break;
+                    case 9:
+                        tok = "INT";
+                        break;
+                    case 10:
+                        tok = "LET";
+                        break;
+                    case 11:
+                        tok = "PRINT";
+                        break;
+                    case 12:
+                        tok = "READ";
+                        break;
+                    case 13:
+                        tok = "RETURN";
+                        break;
+                    case 14:
+                        tok = "SHOW";
+                        break;
+                    case 15:
+                        tok = "SUM";
+                        break;
+                    case 16:
+                        tok = "THEN";
+                        break;
+                    case 17:
+                        tok = "TIME";
+                        break;
+                    case 18:
+                        tok = "TO";
+                        break;
+                    case 19:
+                        tok = "TRUE";
+                        break;
+                    case 20:
+                        tok = "TYPE";
+                        break;
+                    case 21:
+                        tok = "WRITE";
+                        break;
+                    case 22:
+                        tok = "COLON";
+                        break;
+                    case 23:
+                        tok = "LCURLY";
+                        break;
+                    case 24:
+                        tok = "RCURLY";
+                        break;
+                    case 25:
+                        tok = "LPAREN";
+                        break;
+                    case 26:
+                        tok = "RPAREN";
+                        break;
+                    case 27:
+                        tok = "COMMA";
+                        break;
+                    case 28:
+                        tok = "LSQUARE";
+                        break;
+                    case 29:
+                        tok = "RSQUARE";
+                        break;
+                    case 30:
+                        tok = "EQUALS";
+                        break;
+                    case 31:
+                        tok = "STRING";
+                        break;
+                    case 32:
+                        tok = "INTVAL";
+                        break;
+                    case 33:
+                        tok = "FLOATVAL";
+                        break;
+                    case 34:
+                        tok = "VARIABLE";
+                        break;
+                    case 35:
+                        tok = "OP";
+                        break;
+                    case 36: 
+                        tok = "NEWLINE";
+                        break;
+                    case 37:
+                        tok = "END_OF_FILE";
+                        break;
+                    
+                }
+
+                std::cout << tok << " \'" << ptr->text << "\'" << std::endl;
+            }
+        }
+        std::cout << "Compilation succeeded: lexical analysis complete" << std::endl;
        
     }
     else if (!strcmp(flag, "-p")){
