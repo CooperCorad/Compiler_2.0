@@ -53,7 +53,6 @@ int fileSize;
 
 int lexWhiteSpace(int index){
 
-    bool hasNL = false;
 
     while(index < fileSize){
 
@@ -66,12 +65,15 @@ int lexWhiteSpace(int index){
                     index++;
                 }
                 index++;
+                if(tokens.size() == 0 || tokens.back().t != tokType::NEWLINE){
+                    tokens.push_back(token{tokType::NEWLINE, index, "\n"});
+                }
             }
             else if(file[index + 1] == '*'){
                 index += 2;
                 while(index < fileSize){
                     if(file[index] == '*' && file[index + 1] == '/'){
-                        // index++;
+                        index++;
                         break;
                     }
                     if(index == fileSize -1){
@@ -86,14 +88,11 @@ int lexWhiteSpace(int index){
                 break;
             }
         }
-        else if(file[index] == '\\' && file[index] != '\n'){
-            hasNL = true;
-            index++;
+        else if(file[index] == '\\' && file[index+1] == '\n'){
+            index+=2;
         }
-
         else if(file[index] == '\n' && file[index] != '\\'){
-            if(!hasNL){
-                hasNL = true;
+            if(tokens.size() == 0 || tokens.back().t != tokType::NEWLINE){
                 tokens.push_back(token{tokType::NEWLINE, index, "\n"});
             }
             index += 1;
@@ -342,7 +341,16 @@ int main(int argc, char **argv) {
 
     while(getline(fileReader, currline)){
         file += currline + '\n';
+        // cout << "len " << currline.size() << endl;
     }
+    // while(fileReader){
+    //     getline(fileReader, currline);
+    //         file += currline + '\n';
+    // }
+    // getline(fileReader, currline);
+
+    // file += currline;
+
     fileReader.close();
     fileSize = file.size();
 

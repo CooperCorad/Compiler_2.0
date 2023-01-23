@@ -1,6 +1,7 @@
 {
     "explorer.sortOrder": "type",
     "files.associations": {
-        "regex": "cpp"
+        "regex": "cpp",
+        "istream": "cpp"
     }
 }
