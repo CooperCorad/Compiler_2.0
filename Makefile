@@ -9,7 +9,7 @@ compile: compiler.cpp
 	$(CXX) $(CXXFLAGS) -o a.out compiler.cpp 
 
 run: a.out
-	./a.out $(TEST)
+	./a.out -l $(TEST)
 
 clean:
 	rm -f *.o a.out
