@@ -69,7 +69,11 @@ int lexWhiteSpace(int index){
             }
             else if(file[index + 1] == '*'){
                 index += 2;
-                while(file[index] != '*' && file[index + 1] != '/' && index < fileSize){
+                while(index < fileSize){
+                    if(file[index] == '*' && file[index + 1] == '/'){
+                        index++;
+                        break;
+                    }
                     if(index == fileSize -1){
                         throw(LexerException("No end to the multiline comment!"));
                     }

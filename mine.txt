@@ -1,6 +1,4 @@
 ./a.out -l 000.jpl
-~~"~~
-AAAAH
 NEWLINE
 FN 'fn'
 VARIABLE 'gamma_decompress'
@@ -231,5 +229,6 @@ IMAGE 'image'
 VARIABLE 'grayscale_image'
 TO 'to'
 STRING '"photo_gray.png"'
+NEWLINE
 END_OF_FILE
 Compilation succeeded: lexical analysis complete
