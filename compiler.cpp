@@ -79,10 +79,11 @@ int lexWhiteSpace(int index){
 
             }
             else{
-                index++;
+                break;
             }
         }
         else if(file[index] == '\\' && file[index] != '\n'){
+            hasNL = true;
             index++;
         }
 
@@ -136,7 +137,6 @@ std::pair<token, int> lexSTR(int index){
     int originalI = index;
     std::string tokStr = "";
     if (file[index] != '\"'){
-        //TODO throw exception
         throw LexerException(makeError((char*)"unable to find a string at: ", originalI));
 
     }
@@ -174,7 +174,6 @@ std::pair<token, int> lexVAR(int index){
     regex_search(sub, VARmatch, regVAR);
 
     if(!std::string(VARmatch[0]).size()){
-        //TODO throw
         throw LexerException(makeError((char*)"unable to find a variable at: ", originalI));
     }
 
@@ -187,18 +186,20 @@ std::pair<token, int> lexVAR(int index){
 
 std::pair<token, int> lexOP(int index){
     int originalI = index;
-    std::regex regOP("^((&&)|(\\|\\|)|(<=)|(>=)|(<)|(>)|(==)|(!=)|(\\+)|(-)|(\\*)|(\\/)|(%)|(!))");
+    std::regex regOP("^((&&)|(\\|\\|)|(<=)|(>=)|(<)|(>)|(==)|(!=)|(\\+)|(-)|(\\*)|(/)|(%)|(!))");
     std::string sub = file.substr(index);
     std::smatch OPmatch;
+
+    // if(file[index] == '/'){
+    //     // cout << "\n\n*** found /! ***\n\n" << endl;
+    // }
 
     regex_search(sub, OPmatch, regOP);
     std::string tokStr = std::string(OPmatch[0]);    
     int newIndex = index + (int)tokStr.size();
 
     if(!std::string(OPmatch[0]).size()){
-        // TODO throw error
         throw LexerException(makeError((char*)"unable to find a operator at: ", originalI));
-
     }
     return std::make_pair(token{tokType::OP, newIndex, tokStr}, newIndex);
 
@@ -214,7 +215,7 @@ std::pair<token, int> lexKeyWord(int index){
     std::string tokStr = std::string(keywordmatch[0]);
     int newIndex = index + (int)tokStr.size();
 
-    if(tokStr.size() == 0){ // TODO throw!! if the size is 0
+    if(tokStr.size() == 0){ 
         throw LexerException(makeError((char*)"unable to find a keyword at: ", originalI));
     }
 
@@ -239,7 +240,7 @@ std::pair<token, int> lexNum(int index){
     if(floatStr.size() == 0 && intStr.size() == 0){
         throw LexerException(makeError((char*)"Unable to find a number at ", originalI));
     }
-    else if(std::string(floatMatch[0]).size()){ // if the program has a match 
+    else if(std::string(floatMatch[0]).size()){ 
         std::string tokstr = std::string(floatMatch[0]);
         int newIndex = (int)tokstr.size() + index;
         return std::make_pair(token{tokType::FLOATVAL, newIndex, tokstr}, newIndex);
@@ -255,26 +256,32 @@ std::pair<token, int> lexNum(int index){
 std::pair<token, int> tryLex(int index){
     std::pair<token, int> ret;
     try{
+        // cout << "num" << endl;
         ret = lexNum(index);
     }
     catch(LexerException lexep){
             try{
+                // cout << "keyword" << endl;
                 ret = lexKeyWord(index);
             }
             catch(LexerException lexep){
                     try{
+                        // cout << "VAR" << endl;
                         ret = lexVAR(index);
                     }
                     catch(LexerException lexep){
                             try{
+                                // cout << "OP" << endl;
                                 ret = lexOP(index);
                             }
                             catch(LexerException lexep){
                                 try{
+                                    // cout << "punct" << endl;
                                     ret = lexPunct(index);
                                 }
                                 catch(LexerException lexep){
                                         try{
+                                            // cout << "string" << endl;
                                             ret = lexSTR(index);
                                         }
                                         catch(LexerException lexep){
