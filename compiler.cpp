@@ -168,6 +168,7 @@ std::pair<token, int> lexSTR(int index){
 std::pair<token, int> lexVAR(int index){
     int originalI = index;
     std::regex regVAR("^[A-Za-z]+[A-Za-z0-9_\\.]*");
+    std::regex regKeyword("^((array)|(assert)|(bool)|(else)|(false)|(float)|(fn)|(if)|(image)|(int)|(let)|(print)|(read)|(return)|(show)|(sum)|(then)|(time)|(to)|(true)|(type)|(write))");
     std::string sub = file.substr(index);
     std::smatch VARmatch;
 
@@ -179,6 +180,10 @@ std::pair<token, int> lexVAR(int index){
 
     std::string tokStr = std::string(VARmatch[0]);
     int newindex = (int) tokStr.size() + index;
+
+    if(regex_match(tokStr, regKeyword)){
+        return std::make_pair(token{stringToTok[tokStr], newindex, tokStr}, newindex);
+    }
 
     return std::make_pair(token{tokType::VARIABLE, newindex, tokStr}, newindex);
 
@@ -262,12 +267,12 @@ std::pair<token, int> tryLex(int index){
     catch(LexerException lexep){
             try{
                 // cout << "keyword" << endl;
-                ret = lexKeyWord(index);
+                ret = lexVAR(index);
             }
             catch(LexerException lexep){
                     try{
                         // cout << "VAR" << endl;
-                        ret = lexVAR(index);
+                        ret = lexKeyWord(index);
                     }
                     catch(LexerException lexep){
                             try{
