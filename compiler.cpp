@@ -71,7 +71,7 @@ int lexWhiteSpace(int index){
                 index += 2;
                 while(index < fileSize){
                     if(file[index] == '*' && file[index + 1] == '/'){
-                        index++;
+                        // index++;
                         break;
                     }
                     if(index == fileSize -1){
