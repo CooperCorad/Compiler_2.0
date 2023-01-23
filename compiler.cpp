@@ -69,13 +69,20 @@ int lexWhiteSpace(int index){
             }
             else if(file[index + 1] == '*'){
                 index += 2;
-                while(file[index] != '*' && file[index + 1] != '/' && index < fileSize){
+                // cout << "in multi line" << endl;
+                while(index < fileSize){
+                    // cout << file[index];
+                    if(file[index] == '*' && file[index + 1] == '/'){
+                        index++;
+                        break;
+                    }
                     if(index == fileSize -1){
                         throw(LexerException("No end to the multiline comment!"));
                     }
                     index++;
                 }
                 index += 3;
+                // cout << "\nend multi line" << file[index] << file[index+1] << endl;
 
             }
             else{
@@ -86,7 +93,6 @@ int lexWhiteSpace(int index){
             hasNL = true;
             index++;
         }
-
         else if(file[index] == '\n' && file[index] != '\\'){
             if(!hasNL){
                 hasNL = true;
@@ -339,8 +345,17 @@ int main(int argc, char **argv) {
     while(getline(fileReader, currline)){
         file += currline + '\n';
     }
+    // cout << "~~~~" << endl;
     fileReader.close();
     fileSize = file.size();
+    cout << "~~" << file[fileSize-2] << "~~" << endl;
+
+    if(file[fileSize-2] != '\n'  && file[fileSize-1] == '\n' && fileSize >= 2){
+        cout << "AAAAH" << endl;
+        file.pop_back();
+        fileSize -= 1;
+    }
+
 
     if(flag != NULL){
         if(!strcmp(flag, "-l")){

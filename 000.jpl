@@ -1,40 +1,30 @@
 // OK
 
-/* This generates a mandlebrot set image */
+/* Example 5: Convert image to grayscale.
+ * https://en.wikipedia.org/wiki/Grayscale
+ */
 
-fn mandlestep({ zx : float, zy : float}, {cx : float, cy : float}): {float,float} {
-   return { \
-     (zx * zx) - (zy * zy) + cx, \
-     (2.0 * zx * zy) + cy \
-   }
+fn gamma_decompress(x : float) : float {
+   assert (0.0 <= x) && (x <= 1.0), "gamma_decompress argument out of range"
+   return \
+     if (x <= 0.04045) then (x / 12.92) else \
+     pow((x + 0.055) / 1.055, 2.4)
 }
 
-fn mandlecount({ zx : float, zy : float}, c : {float,float}, max : int): int {
-   return if max == 0 \
-   then 0 \
-   else if (zx * zx + zy * zy) > 2.0 \
-   then 0 \
-   else 1 + mandlecount(mandlestep({zx, zy}, c), c, max - 1)
+fn gamma_compress(x : float) : float {
+   assert (0.0 <= x) && (x <= 1.0), "gamma_decompress argument out of range"
+   return pow(x, 2.2)
 }
 
-fn colormap(c : float) : float4 {
-   return if c < 0.5 \
-   then { 0.0, 0.0, 2.0 * c, 1.0 } \
-   else { (2.0 * c) - 1.0, (2.0 * c) - 1.0, 1.0, 1.0}
+fn grayscale_pixel({r : float, g : float, b : float, a : float}) : {float,float,float,float} {
+   let r_linear = gamma_decompress(r)
+   let g_linear = gamma_decompress(g)
+   let b_linear = gamma_decompress(b)
+   let y_linear = (0.2126 * r_linear )+ (0.7152 * g_linear) + (0.0722 * b_linear)
+   let y = gamma_compress(y_linear)
+   return {y, y, y, 1.0}
 }
 
-fn mandlepixel(c : {float,float}, max : int) : float4 {
-   let count = mandlecount({0.0, 0.0}, c, max)
-   let c2 = if count == max then 0.0 else (float(count + 1) / float(max))
-   return colormap(c2)
-}
-
-let iter = if argnum > 1 then float(args[1]) / 60.0 else 0.0
-let {xlo, xhi} = {-1.5, 1.0 - 2.3 * iter}
-let {ylo, yhi} = {-1.0 + 0.9 * iter, 1.0 - 0.9 * iter}
-let {W, H} = {500, 400}
-time let mandlebrot = array[i : W, j : H] mandlepixel( \
-    { xlo + float(i) / float(W) * (xhi - xlo) \
-    , ylo + float(j) / float(H) * (yhi - ylo)}, \
-    25)
-write image mandlebrot to "mandlebrot.png"
+read image "photo.png" to photo_image[W, H]
+let grayscale_image = array[i : W, j : H] grayscale_pixel(photo_image[i,j])
+write image grayscale_image to "photo_gray.png"
