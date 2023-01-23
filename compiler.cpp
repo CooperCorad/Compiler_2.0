@@ -348,10 +348,10 @@ int main(int argc, char **argv) {
     // cout << "~~~~" << endl;
     fileReader.close();
     fileSize = file.size();
-    cout << "~~" << file[fileSize-2] << "~~" << endl;
+    // cout << "~~" << file[fileSize-2] << "~~" << endl;
 
     if(file[fileSize-2] != '\n'  && file[fileSize-1] == '\n' && fileSize >= 2){
-        cout << "AAAAH" << endl;
+        // cout << "AAAAH" << endl;
         file.pop_back();
         fileSize -= 1;
     }
