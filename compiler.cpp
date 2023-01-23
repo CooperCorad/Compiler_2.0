@@ -318,177 +318,181 @@ int main(int argc, char **argv) {
     fileReader.close();
     fileSize = file.size();
 
-    if(!strcmp(flag, "-l")){
-        /*
-            Perform lexical analysis only, printing the tokens to stdout. 
-            In this case, the compilation is considered to be successful if the input file contains 
-            only the lexemes described in this spec; otherwise, the compilation fails
-        */
+    if(flag != NULL){
+        if(!strcmp(flag, "-l")){
+            /*
+                Perform lexical analysis only, printing the tokens to stdout. 
+                In this case, the compilation is considered to be successful if the input file contains 
+                only the lexemes described in this spec; otherwise, the compilation fails
+            */
 
-        try{    
-            std::vector<token> tokens = lexer();
-        }
-        catch(LexerException lexep){
-            std::cout << "Compilation failed" << lexep.what() << std::endl;
-            exit(0);
-        }
-
-        std::vector<token>::iterator ptr;
-
-        for(ptr = tokens.begin(); ptr < tokens.end(); ptr++){
-            if(ptr->t == tokType::NEWLINE){
-
-                std::cout << "NEWLINE" << std::endl;
-            } 
-            else if(ptr->t == tokType::END_OF_FILE){
-                std::cout << "END_OF_FILE" << std::endl;
+            try{    
+                std::vector<token> tokens = lexer();
             }
-            else{
-                string tok = "def";
-                
-                switch(ptr->t){
-                    case 0:
-                        tok = "ARRAY";
-                        break;
-                    case 1:
-                        tok = "ASSERT";
-                        break;
-                    case 2:
-                        tok = "BOOL";
-                        break;
-                    case 3:
-                        tok = "ELSE";
-                        break;
-                    case 4:
-                        tok = "FALSE";
-                        break;
-                    case 5:
-                        tok = "FLOAT";
-                        break;
-                    case 6:
-                        tok = "FN";
-                        break;
-                    case 7:
-                        tok = "IF";
-                        break;
-                    case 8:
-                        tok = "IMAGE";
-                        break;
-                    case 9:
-                        tok = "INT";
-                        break;
-                    case 10:
-                        tok = "LET";
-                        break;
-                    case 11:
-                        tok = "PRINT";
-                        break;
-                    case 12:
-                        tok = "READ";
-                        break;
-                    case 13:
-                        tok = "RETURN";
-                        break;
-                    case 14:
-                        tok = "SHOW";
-                        break;
-                    case 15:
-                        tok = "SUM";
-                        break;
-                    case 16:
-                        tok = "THEN";
-                        break;
-                    case 17:
-                        tok = "TIME";
-                        break;
-                    case 18:
-                        tok = "TO";
-                        break;
-                    case 19:
-                        tok = "TRUE";
-                        break;
-                    case 20:
-                        tok = "TYPE";
-                        break;
-                    case 21:
-                        tok = "WRITE";
-                        break;
-                    case 22:
-                        tok = "COLON";
-                        break;
-                    case 23:
-                        tok = "LCURLY";
-                        break;
-                    case 24:
-                        tok = "RCURLY";
-                        break;
-                    case 25:
-                        tok = "LPAREN";
-                        break;
-                    case 26:
-                        tok = "RPAREN";
-                        break;
-                    case 27:
-                        tok = "COMMA";
-                        break;
-                    case 28:
-                        tok = "LSQUARE";
-                        break;
-                    case 29:
-                        tok = "RSQUARE";
-                        break;
-                    case 30:
-                        tok = "EQUALS";
-                        break;
-                    case 31:
-                        tok = "STRING";
-                        break;
-                    case 32:
-                        tok = "INTVAL";
-                        break;
-                    case 33:
-                        tok = "FLOATVAL";
-                        break;
-                    case 34:
-                        tok = "VARIABLE";
-                        break;
-                    case 35:
-                        tok = "OP";
-                        break;
-                    case 36: 
-                        tok = "NEWLINE";
-                        break;
-                    case 37:
-                        tok = "END_OF_FILE";
-                        break;
-                    
+            catch(LexerException lexep){
+                std::cout << "Compilation failed" << lexep.what() << std::endl;
+                exit(0);
+            }
+
+            std::vector<token>::iterator ptr;
+
+            for(ptr = tokens.begin(); ptr < tokens.end(); ptr++){
+                if(ptr->t == tokType::NEWLINE){
+
+                    std::cout << "NEWLINE" << std::endl;
+                } 
+                else if(ptr->t == tokType::END_OF_FILE){
+                    std::cout << "END_OF_FILE" << std::endl;
                 }
+                else{
+                    string tok = "def";
+                    
+                    switch(ptr->t){
+                        case 0:
+                            tok = "ARRAY";
+                            break;
+                        case 1:
+                            tok = "ASSERT";
+                            break;
+                        case 2:
+                            tok = "BOOL";
+                            break;
+                        case 3:
+                            tok = "ELSE";
+                            break;
+                        case 4:
+                            tok = "FALSE";
+                            break;
+                        case 5:
+                            tok = "FLOAT";
+                            break;
+                        case 6:
+                            tok = "FN";
+                            break;
+                        case 7:
+                            tok = "IF";
+                            break;
+                        case 8:
+                            tok = "IMAGE";
+                            break;
+                        case 9:
+                            tok = "INT";
+                            break;
+                        case 10:
+                            tok = "LET";
+                            break;
+                        case 11:
+                            tok = "PRINT";
+                            break;
+                        case 12:
+                            tok = "READ";
+                            break;
+                        case 13:
+                            tok = "RETURN";
+                            break;
+                        case 14:
+                            tok = "SHOW";
+                            break;
+                        case 15:
+                            tok = "SUM";
+                            break;
+                        case 16:
+                            tok = "THEN";
+                            break;
+                        case 17:
+                            tok = "TIME";
+                            break;
+                        case 18:
+                            tok = "TO";
+                            break;
+                        case 19:
+                            tok = "TRUE";
+                            break;
+                        case 20:
+                            tok = "TYPE";
+                            break;
+                        case 21:
+                            tok = "WRITE";
+                            break;
+                        case 22:
+                            tok = "COLON";
+                            break;
+                        case 23:
+                            tok = "LCURLY";
+                            break;
+                        case 24:
+                            tok = "RCURLY";
+                            break;
+                        case 25:
+                            tok = "LPAREN";
+                            break;
+                        case 26:
+                            tok = "RPAREN";
+                            break;
+                        case 27:
+                            tok = "COMMA";
+                            break;
+                        case 28:
+                            tok = "LSQUARE";
+                            break;
+                        case 29:
+                            tok = "RSQUARE";
+                            break;
+                        case 30:
+                            tok = "EQUALS";
+                            break;
+                        case 31:
+                            tok = "STRING";
+                            break;
+                        case 32:
+                            tok = "INTVAL";
+                            break;
+                        case 33:
+                            tok = "FLOATVAL";
+                            break;
+                        case 34:
+                            tok = "VARIABLE";
+                            break;
+                        case 35:
+                            tok = "OP";
+                            break;
+                        case 36: 
+                            tok = "NEWLINE";
+                            break;
+                        case 37:
+                            tok = "END_OF_FILE";
+                            break;
+                        
+                    }
 
-                std::cout << tok << " \'" << ptr->text << "\'" << std::endl;
+                    std::cout << tok << " \'" << ptr->text << "\'" << std::endl;
+                }
             }
+            std::cout << "Compilation succeeded: lexical analysis complete" << std::endl;
+        
         }
-        std::cout << "Compilation succeeded: lexical analysis complete" << std::endl;
-       
-    }
-    else if (!strcmp(flag, "-p")){
-        /*
-            Perform lexical analysis and parsing only, pretty-printing the parsed program back to ASCII 
-            text in a format based on s-expressions that is described in your assignments. In this case, 
-            the compilation is considered to be successful if the input program corresponds to the grammar
-             described in your current assignment; otherwise, the compilation fails.
-        */
-    }
-    else if (!strcmp(flag, "-t"))
-    {
-        /*
-            Perform lexical analysis, parsing, and type checking (but not code generation). 
-            In this case, the compilation is considered to be successful if the input program is fully 
-            legal JPL; otherwise the compilation fails.
-        */
+        else if (!strcmp(flag, "-p")){
+            /*
+                Perform lexical analysis and parsing only, pretty-printing the parsed program back to ASCII 
+                text in a format based on s-expressions that is described in your assignments. In this case, 
+                the compilation is considered to be successful if the input program corresponds to the grammar
+                described in your current assignment; otherwise, the compilation fails.
+            */
+        }
+        else if (!strcmp(flag, "-t"))
+        {
+            /*
+                Perform lexical analysis, parsing, and type checking (but not code generation). 
+                In this case, the compilation is considered to be successful if the input program is fully 
+                legal JPL; otherwise the compilation fails.
+            */
+        }
     }
     else{
-        //terse error message
+        cout << "A flag is required" << endl;
+        exit(0);
     }
+
 
 
     // file.open(filespec);
