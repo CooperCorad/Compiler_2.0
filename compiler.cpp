@@ -9,7 +9,7 @@
 
 using namespace std;
 
-class LexerException : public std::exception {
+class LexerException : public exception {
     private:
         const char* message;
 
@@ -27,7 +27,7 @@ WRITE, COLON, LCURLY, RCURLY, LPAREN, RPAREN, COMMA,
 LSQUARE, RSQUARE, EQUALS, STRING, INTVAL, FLOATVAL, VARIABLE, 
 OP, NEWLINE, END_OF_FILE};
 
-std::map<std::string, tokType> stringToTok = { { "array", tokType::ARRAY }, { "assert", tokType::ASSERT },
+map<string, tokType> stringToTok = { { "array", tokType::ARRAY }, { "assert", tokType::ASSERT },
 { "bool", tokType::BOOL }, { "else", tokType::ELSE }, { "false", tokType::FALSE }, { "float", tokType::FLOAT },
 { "fn", tokType::FN }, { "if", tokType::IF }, { "image", tokType::IMAGE }, { "int", tokType::INT },
 { "let", tokType::LET }, { "print", tokType::PRINT }, { "read", tokType::READ }, { "return", tokType::RETURN },
@@ -42,12 +42,12 @@ std::map<std::string, tokType> stringToTok = { { "array", tokType::ARRAY }, { "a
 struct token {
   tokType t;
   int start;
-  std::string text;
+  string text;
 };
 
 
-std::vector<token> tokens;
-std::string file;
+vector<token> tokens;
+string file;
 int fileSize; 
 
 
@@ -127,27 +127,27 @@ const char* makeError(string msg, int index){
 }
 
 
-std::pair<token, int> lexPunct(int index){
+pair<token, int> lexPunct(int index){
     int originalI = index;
-    std::regex regPUNCT ("^[\\:\\{\\}\\(\\)\\[\\],=]");
-    std::smatch PUNCTMatch;
-    std::string sub = file.substr(index);
+    regex regPUNCT ("^[\\:\\{\\}\\(\\)\\[\\],=]");
+    smatch PUNCTMatch;
+    string sub = file.substr(index);
 
-    std::regex_search(sub, PUNCTMatch, regPUNCT);
-    std::string tokStr = PUNCTMatch[0];
+    regex_search(sub, PUNCTMatch, regPUNCT);
+    string tokStr = PUNCTMatch[0];
     int newIndex = index + tokStr.size();
 
 
     if(tokStr.size() == 0){
         throw LexerException(makeError((char*)"unable to find punctuation at ", originalI));
     }
-    return std::make_pair(token{stringToTok[tokStr], newIndex, tokStr}, newIndex);
+    return make_pair(token{stringToTok[tokStr], newIndex, tokStr}, newIndex);
 }
 
 
-std::pair<token, int> lexSTR(int index){
+pair<token, int> lexSTR(int index){
     int originalI = index;
-    std::string tokStr = "";
+    string tokStr = "";
     if (file[index] != '\"'){
         throw LexerException(makeError((char*)"unable to find a string at: ", originalI));
 
@@ -173,63 +173,63 @@ std::pair<token, int> lexSTR(int index){
 
     tokStr += '"';
     index++;
-    return std::make_pair(token{tokType::STRING, index, tokStr}, index);
+    return make_pair(token{tokType::STRING, index, tokStr}, index);
 
 }
 
-std::pair<token, int> lexVAR(int index){
+pair<token, int> lexVAR(int index){
     int originalI = index;
-    std::regex regVAR("^[A-Za-z]+[A-Za-z0-9_\\.]*");
-    std::regex regKeyword("^((array)|(assert)|(bool)|(else)|(false)|(float)|(fn)|(if)|(image)|(int)|(let)|(print)|(read)|(return)|(show)|(sum)|(then)|(time)|(to)|(true)|(type)|(write))");
-    std::string sub = file.substr(index);
-    std::smatch VARmatch;
+    regex regVAR("^[A-Za-z]+[A-Za-z0-9_\\.]*");
+    regex regKeyword("^((array)|(assert)|(bool)|(else)|(false)|(float)|(fn)|(if)|(image)|(int)|(let)|(print)|(read)|(return)|(show)|(sum)|(then)|(time)|(to)|(true)|(type)|(write))");
+    string sub = file.substr(index);
+    smatch VARmatch;
 
     regex_search(sub, VARmatch, regVAR);
 
-    if(!std::string(VARmatch[0]).size()){
+    if(!string(VARmatch[0]).size()){
         throw LexerException(makeError((char*)"unable to find a variable at: ", originalI));
     }
 
-    std::string tokStr = std::string(VARmatch[0]);
+    string tokStr = string(VARmatch[0]);
     int newindex = (int) tokStr.size() + index;
 
     if(regex_match(tokStr, regKeyword)){
-        return std::make_pair(token{stringToTok[tokStr], newindex, tokStr}, newindex);
+        return make_pair(token{stringToTok[tokStr], newindex, tokStr}, newindex);
     }
 
-    return std::make_pair(token{tokType::VARIABLE, newindex, tokStr}, newindex);
+    return make_pair(token{tokType::VARIABLE, newindex, tokStr}, newindex);
 
 }
 
-std::pair<token, int> lexOP(int index){
+pair<token, int> lexOP(int index){
     int originalI = index;
-    std::regex regOP("^((&&)|(\\|\\|)|(<=)|(>=)|(<)|(>)|(==)|(!=)|(\\+)|(-)|(\\*)|(/)|(%)|(!))");
-    std::string sub = file.substr(index);
-    std::smatch OPmatch;
+    regex regOP("^((&&)|(\\|\\|)|(<=)|(>=)|(<)|(>)|(==)|(!=)|(\\+)|(-)|(\\*)|(/)|(%)|(!))");
+    string sub = file.substr(index);
+    smatch OPmatch;
 
     // if(file[index] == '/'){
     //     // cout << "\n\n*** found /! ***\n\n" << endl;
     // }
 
     regex_search(sub, OPmatch, regOP);
-    std::string tokStr = std::string(OPmatch[0]);    
+    string tokStr = string(OPmatch[0]);    
     int newIndex = index + (int)tokStr.size();
 
-    if(!std::string(OPmatch[0]).size()){
+    if(!string(OPmatch[0]).size()){
         throw LexerException(makeError((char*)"unable to find a operator at: ", originalI));
     }
-    return std::make_pair(token{tokType::OP, newIndex, tokStr}, newIndex);
+    return make_pair(token{tokType::OP, newIndex, tokStr}, newIndex);
 
 }
 
-std::pair<token, int> lexKeyWord(int index){
+pair<token, int> lexKeyWord(int index){
     int originalI = index;
-    std::regex regKeyword("^((array)|(assert)|(bool)|(else)|(false)|(float)|(fn)|(if)|(image)|(int)|(let)|(print)|(read)|(return)|(show)|(sum)|(then)|(time)|(to)|(true)|(type)|(write))");
-    std::smatch keywordmatch;
-    std::string sub = file.substr(index);
+    regex regKeyword("^((array)|(assert)|(bool)|(else)|(false)|(float)|(fn)|(if)|(image)|(int)|(let)|(print)|(read)|(return)|(show)|(sum)|(then)|(time)|(to)|(true)|(type)|(write))");
+    smatch keywordmatch;
+    string sub = file.substr(index);
 
     regex_search(sub, keywordmatch, regKeyword);
-    std::string tokStr = std::string(keywordmatch[0]);
+    string tokStr = string(keywordmatch[0]);
     int newIndex = index + (int)tokStr.size();
 
     if(tokStr.size() == 0){ 
@@ -237,41 +237,41 @@ std::pair<token, int> lexKeyWord(int index){
     }
 
 
-    return std::make_pair(token{stringToTok[tokStr], newIndex, tokStr}, newIndex);
+    return make_pair(token{stringToTok[tokStr], newIndex, tokStr}, newIndex);
 
 }
 
-std::pair<token, int> lexNum(int index){
+pair<token, int> lexNum(int index){
     int originalI = index;
-    std::regex regFloat ("(^[0-9]+\\.[0-9]*)|(^[0-9]*\\.[0-9]+)");
-    std::regex regInt ("^[0-9]+");
-    std::smatch floatMatch;
-    std::smatch intMatch;
-    std::string sub = file.substr(index);
+    regex regFloat ("(^[0-9]+\\.[0-9]*)|(^[0-9]*\\.[0-9]+)");
+    regex regInt ("^[0-9]+");
+    smatch floatMatch;
+    smatch intMatch;
+    string sub = file.substr(index);
 
-    std::regex_search(sub, floatMatch, regFloat);
-    std::regex_search(sub, intMatch, regInt);
+    regex_search(sub, floatMatch, regFloat);
+    regex_search(sub, intMatch, regInt);
     string floatStr = string(floatMatch[0]);
     string intStr = string(intMatch[0]);
 
     if(floatStr.size() == 0 && intStr.size() == 0){
         throw LexerException(makeError((char*)"Unable to find a number at ", originalI));
     }
-    else if(std::string(floatMatch[0]).size()){ 
-        std::string tokstr = std::string(floatMatch[0]);
+    else if(string(floatMatch[0]).size()){ 
+        string tokstr = string(floatMatch[0]);
         int newIndex = (int)tokstr.size() + index;
-        return std::make_pair(token{tokType::FLOATVAL, newIndex, tokstr}, newIndex);
+        return make_pair(token{tokType::FLOATVAL, newIndex, tokstr}, newIndex);
     }
 
-    std::string tokstr = std::string(intMatch[0]);
+    string tokstr = string(intMatch[0]);
     int newIndex = (int)tokstr.size() + index;
-    return std::make_pair(token{tokType::INTVAL, newIndex, tokstr}, newIndex);
+    return make_pair(token{tokType::INTVAL, newIndex, tokstr}, newIndex);
     
 }
 
 
-std::pair<token, int> tryLex(int index){
-    std::pair<token, int> ret;
+pair<token, int> tryLex(int index){
+    pair<token, int> ret;
     try{
         // cout << "num" << endl;
         ret = lexNum(index);
@@ -313,11 +313,11 @@ std::pair<token, int> tryLex(int index){
 
 }
 
-std::vector<token> lexer(){
+vector<token> lexer(){
     int index = lexWhiteSpace(0);
 
     while (index < fileSize){
-        std::pair<token, int> info = tryLex(index);
+        pair<token, int> info = tryLex(index);
         tokens.push_back(info.first);
         index = lexWhiteSpace(info.second);
     }
@@ -344,8 +344,8 @@ int main(int argc, char **argv) {
 
 
 
-    std::string currline;
-    std::ifstream fileReader;
+    string currline;
+    ifstream fileReader;
     fileReader.open(filespec);
 
     while(!fileReader.eof()){
@@ -365,22 +365,22 @@ int main(int argc, char **argv) {
             */
 
             try{    
-                std::vector<token> tokens = lexer();
+                vector<token> tokens = lexer();
             }
             catch(LexerException lexep){
-                std::cout << "Compilation failed" << lexep.what() << std::endl;
+                cout << "Compilation failed" << lexep.what() << endl;
                 exit(0);
             }
 
-            std::vector<token>::iterator ptr;
+            vector<token>::iterator ptr;
 
             for(ptr = tokens.begin(); ptr < tokens.end(); ptr++){
                 if(ptr->t == tokType::NEWLINE){
 
-                    std::cout << "NEWLINE" << std::endl;
+                    cout << "NEWLINE" << endl;
                 } 
                 else if(ptr->t == tokType::END_OF_FILE){
-                    std::cout << "END_OF_FILE" << std::endl;
+                    cout << "END_OF_FILE" << endl;
                 }
                 else{
                     string tok = "def";
@@ -503,10 +503,10 @@ int main(int argc, char **argv) {
                         
                     }
 
-                    std::cout << tok << " \'" << ptr->text << "\'" << std::endl;
+                    cout << tok << " \'" << ptr->text << "\'" << endl;
                 }
             }
-            std::cout << "Compilation succeeded: lexical analysis complete" << std::endl;
+            cout << "Compilation succeeded: lexical analysis complete" << endl;
         
         }
         else if (!strcmp(flag, "-p")){
