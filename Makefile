@@ -6,7 +6,7 @@ CXXFLAGS=-Og -std=c++17 -Werror -Wall -fsanitize=address,undefined -fno-sanitize
 all: run
 
 compile: compiler.cpp
-	$(CXX) $(CXXFLAGS) -o a.out compiler.cpp 
+	$(CXX) $(CXXFLAGS) -o RotallyRadCompiler compiler.cpp 
 
 run: a.out
 	./a.out -l $(TEST)

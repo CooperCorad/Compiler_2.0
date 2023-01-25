@@ -1,9 +1,0 @@
-./a.out -l 111.jpl
-NEWLINE
-SHOW 'show'
-INTVAL '3'
-NEWLINE
-LET 'let'
-NEWLINE
-END_OF_FILE
-Compilation succeeded: lexical analysis complete

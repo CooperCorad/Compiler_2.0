@@ -53,6 +53,7 @@ int fileSize;
 
 int lexWhiteSpace(int index){
 
+    bool hasNL = false;
 
     while(index < fileSize){
 
@@ -64,35 +65,43 @@ int lexWhiteSpace(int index){
                 while(file[index] != '\n' && index < fileSize){
                     index++;
                 }
-                index++;
-                if(tokens.size() == 0 || tokens.back().t != tokType::NEWLINE){
+                if(!hasNL){
+                    hasNL = true;
                     tokens.push_back(token{tokType::NEWLINE, index, "\n"});
                 }
+                index++;
             }
             else if(file[index + 1] == '*'){
                 index += 2;
                 while(index < fileSize){
-                    if(file[index] == '*' && file[index + 1] == '/'){
-                        index++;
-                        break;
-                    }
                     if(index == fileSize -1){
                         throw(LexerException("No end to the multiline comment!"));
                     }
+                    if(file[index] == '*' && file[index + 1] == '/'){
+                        if(!hasNL){
+                            hasNL = true;
+                            tokens.push_back(token{tokType::NEWLINE, index, "\n"});
+                        }
+                        index++;
+                        break;
+                    }
                     index++;
                 }
-                index += 3;
+                index += 2;
 
             }
             else{
                 break;
             }
         }
-        else if(file[index] == '\\' && file[index+1] == '\n'){
-            index+=2;
+        else if(file[index] == '\\' && file[index] != '\n'){
+            hasNL = true;
+            index++;
         }
+
         else if(file[index] == '\n' && file[index] != '\\'){
-            if(tokens.size() == 0 || tokens.back().t != tokType::NEWLINE){
+            if(!hasNL){
+                hasNL = true;
                 tokens.push_back(token{tokType::NEWLINE, index, "\n"});
             }
             index += 1;
@@ -339,19 +348,12 @@ int main(int argc, char **argv) {
     std::ifstream fileReader;
     fileReader.open(filespec);
 
-    while(getline(fileReader, currline)){
+    while(!fileReader.eof()){
+        getline(fileReader, currline);
         file += currline + '\n';
-        // cout << "len " << currline.size() << endl;
     }
-    // while(fileReader){
-    //     getline(fileReader, currline);
-    //         file += currline + '\n';
-    // }
-    // getline(fileReader, currline);
-
-    // file += currline;
-
     fileReader.close();
+    file.pop_back();
     fileSize = file.size();
 
     if(flag != NULL){
