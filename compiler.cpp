@@ -932,7 +932,7 @@ class Parser {
 
             pair<Variable, int> result = parse_Argument(index);
             unique_ptr<Variable> varptr = make_unique<Variable>(result.first);
-            unique_ptr<VarArg> varargptr = make_unique<VarArg>(move(varptr));
+            unique_ptr<VarArg> varargptr = make_unique<VarArg>(VarArg(move(varptr)));   //<argument>
 
             ReadCmd readcmd(filename, move(varargptr));
 
