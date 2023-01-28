@@ -2,6 +2,7 @@
     "explorer.sortOrder": "type",
     "files.associations": {
         "regex": "cpp",
-        "istream": "cpp"
+        "istream": "cpp",
+        "limits": "cpp"
     }
 }
