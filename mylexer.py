@@ -1,12 +1,12 @@
 import re
 
-toktype = {"array": "ARRAY", "assert" : "ASSERT", "bool" : "BOOL", "else" : "ELSE", "false" : "FALSE",
-       "float" : "FLOAT", "fn" : "FN", "if" : "IF", "image" : "IMAGE", "int" : "INT", "let" : "LET", "print" : "PRINT",
-       "return" : "RETURN", "show" : "SHOW", "sum" : "SUM", "then" : "THEN", "time" : "TIME", "to" : "TO",
-       "true" : "TRUE", "type" : "TYPE", "write" : "WRITE", ":" : "COLON", "{" : "LCURLY", "}" : "RCURLY",
-       "(" : "LPAREN", ")" : "RPAREN", "," : "COMMA", "[" : "LSQUARE",  "]" : "RSQUARE", "=" : "EQUALS",
-       "string" : "STRING", "intval" : "INTVAL", "floatval" : "FLOATVAL", "var" : "VARIABLE", "op" : "OP",
-       "read" : "READ", "nl" : "NEWLINE", "eof" : "END_OF_FILE"}
+toktype = {'array': 'ARRAY', 'assert' : 'ASSERT', 'bool' : 'BOOL', 'else' : 'ELSE', 'false' : 'FALSE',
+       'float' : 'FLOAT', 'fn' : 'FN', 'if' : 'IF', 'image' : 'IMAGE', 'int' : 'INT', 'let' : 'LET', 'print' : 'PRINT',
+       'return' : 'RETURN', 'show' : 'SHOW', 'sum' : 'SUM', 'then' : 'THEN', 'time' : 'TIME', 'to' : 'TO',
+       'true' : 'TRUE', 'type' : 'TYPE', 'write' : 'WRITE', ':' : 'COLON', '{' : 'LCURLY', '}' : 'RCURLY',
+       '(' : 'LPAREN', ')' : 'RPAREN', ',' : 'COMMA', '[' : 'LSQUARE',  ']' : 'RSQUARE', '=' : 'EQUALS',
+       'string' : 'STRING', 'intval' : 'INTVAL', 'floatval' : 'FLOATVAL', 'var' : 'VARIABLE', 'op' : 'OP',
+       'read' : 'READ', 'nl' : 'NEWLINE', 'eof' : 'END_OF_FILE'}
 
 
 class Token:
@@ -36,17 +36,14 @@ class Lexer:
             if self.file[index] == ' ':
                 index += 1
             elif self.file[index] == '/':
-                if index + 1 == self.file_size:
-                    break
-                next_char = self.file[index + 1]
-                if next_char == '/':
+                if self.file[index + 1] == '/':
                     while index < self.file_size and self.file[index] != '\n':
                         index += 1
                     if not has_newline:
                         has_newline = True
                         self.tokens.append(Token(toktype['nl'], index, 'NEWLINE'))
                     index += 1
-                elif next_char == '*':
+                elif self.file[index + 1] == '*':
                     index += 2
                     while index < self.file_size:
                         if index == self.file_size - 1:
@@ -68,9 +65,9 @@ class Lexer:
                 if not has_newline:
                     has_newline = True
                     self.tokens.append(Token(toktype['nl'], index, 'nl'))
-                    index += 1
+                    # index += 1
                 index += 1
-            elif index == self.file_size:
+            elif index == self.file_size - 1:
                 self.tokens.append(Token(toktype['eof'], index, 'EOF'))
                 break
             else:
@@ -95,10 +92,12 @@ class Lexer:
         else:
             tokstr += '\"'
             index += 1
+        if self.file[index] == '\n':
+            raise LexerError("You cannot have a newline\\eof in your string!")
 
-        while index < self.file_size and (32 <= ord(self.file[index]) <= 126) and self.file[index] != '\"':
-            if self.file[index] == '\n' or ord(self.file[index]) == 4:
-                raise LexerError("You cannot have a newline\\eof in your string!")
+        while self.file[index] != '\"' and index < self.file_size:
+            if self.file[index] == '\n' or ord(self.file[index]) == 4 or (ord(self.file[index]) < 32 or ord(self.file[index]) > 126):
+                raise LexerError("You cannot have a newline\\eof\\illegal chracter in your string!")
             tokstr += self.file[index]
             index += 1
 
@@ -109,6 +108,7 @@ class Lexer:
         index += 1
 
         return Token(toktype["string"], index, tokstr), index
+
 
     def lex_variable(self, index: int):
         reg_variable = '^[a-zA-Z]+[a-zA-Z0-9_\\.]*'
@@ -121,7 +121,7 @@ class Lexer:
         tokstr = search[0]
 
         if tokstr in toktype.keys():
-            return Token(toktype[tokstr], index, tokstr), index + len(tokstr)
+            return Token(toktype[tokstr], index, tokstr.strip()), index + len(tokstr)
         return Token(toktype["var"], index, tokstr), index + len(tokstr)
 
     def lex_operator(self, index: int):
@@ -177,80 +177,43 @@ class Lexer:
         except LexerError as error:
             try:
                 ret = self.lex_variable(index)
+            # except LexerError as error:
+            #     try:
+            #         ret = self.lex_keyword(index)
             except LexerError as error:
                 try:
-                    ret = self.lex_keyword(index)
+                    ret = self.lex_operator(index)
                 except LexerError as error:
                     try:
-                        ret = self.lex_operator(index)
+                        ret = self.lex_punct(index)
                     except LexerError as error:
                         try:
-                            ret = self.lex_punct(index)
+                            ret = self.lex_string(index)
                         except LexerError as error:
-                            try:
-                                ret = self.lex_string(index)
-                            except LexerError as error:
-                                raise LexerError(error.message)
+                            raise LexerError(error.message)
 
         return ret
 
     def runner(self):
         index = 0
 
+        try:
+            index = self.lex_white_space(index)
+        except LexerError as error:
+            err = "Compilation failed! " + error.message
+            print(err)
+            exit(0)
         while index < self.file_size:
             try:
-                index = self.lex_white_space(index)
-                print(self.file[index:])
+                # temp = self.file[index]
+                # print(self.file[index:])
                 tok, index = self.try_lex(index)
                 self.tokens.append(tok)
+                index = self.lex_white_space(index)
 
             except LexerError as error:
-                print("Compilation failed ", error.message)
+                print("Compilation failed! ", error.message)
                 exit(0)
 
         if len(self.tokens) == 0 or (len(self.tokens) > 0 and self.tokens[len(self.tokens) - 1].t is not toktype['eof']):
             self.tokens.append(Token(toktype['eof'], index, 'EOF'))
-
-
-def main():
-
-    # flag = sys.argv[1]
-    # file_spec = sys.argv[2]
-    flag = '-l'
-    file_spec = 'C:\\Users\\coope\\PycharmProjects\\testzone\\venv\\test.jpl'
-
-    if flag[0] != '-':
-        temp = flag
-        flag = file_spec
-        file_spec = temp
-    file_reader = open(file_spec, 'r')
-    file = ''.join(file_reader.readlines())
-    file_reader.close()
-    # print(file)
-
-    if flag == '-l':
-        try:
-            print(file)
-            lexer = Lexer(file)
-            lexer.runner()
-            for x in lexer.tokens:
-                print("type ", x.t, " text ", x.text)
-
-        except LexerError as error:
-            print(error.message)
-            exit(0)
-
-    elif flag == '-p':
-        exit(0)
-    elif flag == '-t':
-        exit(0)
-    else:
-        print('A flag (-l, -p, -t) is required')
-
-
-
-
-if __name__ == '__main__':
-    main()
-
-

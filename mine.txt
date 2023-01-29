@@ -1,0 +1,2 @@
+python3 compiler.py -l test.jpl
+Compilation failed  You've reached the end of the file without string termination
