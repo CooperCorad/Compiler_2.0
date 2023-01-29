@@ -537,6 +537,8 @@ class ASTNode {
         virtual string to_String(){
             return "";
         }
+
+        virtual ~ASTNode(){}
 };
 
 class Variable : public ASTNode {
@@ -547,13 +549,22 @@ class Variable : public ASTNode {
             variable = inStr;
         }
 
-        virtual string to_String(){
+        Variable(const Variable& inVariable){
+            variable = inVariable.variable;
+        }
+
+        virtual ~Variable(){}
+
+        string to_String(){
             return variable;
         }
 
 };
 
-class Argument : public ASTNode {};
+class Argument : public ASTNode {
+    public:
+        virtual ~Argument(){}
+};
 
     // <variable>
     class VarArg : public Argument {
@@ -564,7 +575,13 @@ class Argument : public ASTNode {};
                 variable = move(inVariable);
             }
 
-            virtual string to_String(){
+            VarArg(const VarArg& inVarArg){
+                variable = move(inVarArg.variable);
+            }
+
+            virtual ~VarArg(){}
+
+            string to_String(){
                 return "(VarArgument " + variable->to_String() + ")";
             }
 
@@ -579,7 +596,13 @@ class Argument : public ASTNode {};
                 variable = move(inVariable);
             }
 
-            virtual string to_String(){
+            ArgLValue(const ArgLValue& inArgLValue){
+                variable = move(inArgLValue.variable);
+            }
+
+            virtual ~ArgLValue(){}
+
+            string to_String(){ //TODO virtual string to_string override () {...}
                 return "(ArgLValue " + variable->to_String() + ")";
             }
     };
@@ -590,7 +613,10 @@ class Argument : public ASTNode {};
 //      | true
 //      | false
 //      | <variable>
-class Expr : public ASTNode {};
+class Expr : public ASTNode {
+        public:
+            virtual ~Expr(){}
+};
 
     // int
     class IntExpr : public Expr {
@@ -603,7 +629,9 @@ class Expr : public ASTNode {};
                 intVal = strtol(inInt.c_str(), nullptr, 10);
             }
 
-            virtual string to_String(){
+            virtual ~IntExpr(){}
+
+            string to_String(){
                 return "(IntExpr " + intStr + ")";
             }
 
@@ -620,7 +648,9 @@ class Expr : public ASTNode {};
                 floatVal = strtod(inFloat.c_str(), nullptr);
             }
 
-            virtual string to_String(){
+            virtual ~FloatExpr(){}
+
+            string to_String(){
                 string res = "";
                 int i = 0;
                 while(floatStr[i] != '.'){
@@ -634,17 +664,21 @@ class Expr : public ASTNode {};
     // true
     class TrueExpr : public Expr {
         public:
-            virtual string to_String(){
+            string to_String(){
                 return "(TrueExpr)";
             }
+
+            virtual ~TrueExpr(){}
     };
 
     // false
     class FalseExpr : public Expr {
         public:
-            virtual string to_String(){
+            string to_String(){
                 return "(FalseExpr)";
             }
+
+            virtual ~FalseExpr(){}
     };
 
     // <vairable>
@@ -656,7 +690,9 @@ class Expr : public ASTNode {};
                 variable = move(inVariable);
             }
 
-            virtual string to_String(){
+            virtual ~VariableExpr(){}
+
+            string to_String(){
                 return "(VarExpr " + variable->to_String() + ")";
             }
 
@@ -668,33 +704,41 @@ class Expr : public ASTNode {};
 //      | <variable>
 class Type : public ASTNode {
     public:
-        virtual string to_String(){
+        string to_String(){
                 return "";
         }
+
+        virtual ~Type(){}
 };
 
     // int
     class IntType : public Type {
         public:
-            virtual string to_String(){
+            string to_String(){
                 return "(IntType)";
             }
+
+            virtual ~IntType(){}
     };
 
     // bool
     class BoolType : public Type {
         public:
-            virtual string to_String(){
+            string to_String(){
                 return "(BoolType)";
             }
+
+            virtual ~BoolType(){}
     };
 
     // float
     class FloatType : public Type {
         public:
-            virtual string to_String(){
+            string to_String(){
                 return "(FloatType)";
             }
+
+            virtual ~FloatType(){}
     };
 
     // <variable>
@@ -706,7 +750,9 @@ class Type : public ASTNode {
                 variable = move(inVariable);
             }
 
-            virtual string to_String(){
+            virtual ~VarType(){}
+
+            string to_String(){
                 return "(VarType " + variable->to_String() + ")";
             }
     }; 
@@ -721,9 +767,11 @@ class Type : public ASTNode {
 
 class Cmd : public ASTNode {
     public:
-        virtual string to_String(){
+        string to_String(){
                 return "";
         }
+
+        virtual ~Cmd(){}
 };
 
     // read image <string> to <argument>
@@ -737,7 +785,14 @@ class Cmd : public ASTNode {
                 argument = move(inVarArg);
             }
 
-            virtual string to_String(){
+            ReadCmd(const ReadCmd& inCmd){
+                str = inCmd.str;
+                argument = move(inCmd.argument);
+            }
+
+            virtual ~ReadCmd(){}
+
+            string to_String(){
                 return "(ReadCmd " + str + " " + argument->to_String() + ")";
             }
     };
@@ -753,7 +808,9 @@ class Cmd : public ASTNode {
                 str = inStr;
             }
 
-            virtual string to_String(){
+            virtual ~WriteCmd(){}
+
+            string to_String(){
                 return "(WriteCmd " + expression->to_String() + " " + str + ")";
             }
     };
@@ -769,7 +826,9 @@ class Cmd : public ASTNode {
                 type = move(inType);
             }
 
-            virtual string to_String(){
+            virtual ~TypeCmd(){}
+
+            string to_String(){
                 return "(TypeCmd " + variable->to_String() + " " + type->to_String() + ")";
             }
     };
@@ -785,7 +844,9 @@ class Cmd : public ASTNode {
                 expr = move(inExpr);
             }
 
-            virtual string to_String(){
+            virtual ~LetCmd(){}
+
+            string to_String(){
                 return "(LetCmd " + lvalue->to_String() + " " + expr->to_String() + ")";
             }
     };
@@ -801,7 +862,9 @@ class Cmd : public ASTNode {
                 str = inStr;
             }
 
-            virtual string to_String(){
+            virtual ~AssertCmd(){}
+
+            string to_String(){
                 return "(AssertCmd " + expr->to_String() + " " + str + ")";
             }
     };
@@ -815,7 +878,9 @@ class Cmd : public ASTNode {
                 str = inStr;
             }
 
-            virtual string to_String(){
+            virtual ~PrintCmd(){}
+
+            string to_String(){
                 return "(PrintCmd " + str + ")";
             }
     };
@@ -829,7 +894,9 @@ class Cmd : public ASTNode {
                 expr = move(inExpr);
             }
 
-            virtual string to_String(){
+            virtual ~ShowCmd(){}
+
+            string to_String(){
                 return "(ShowCmd " + expr->to_String() + ")";
             }
     };
@@ -838,7 +905,7 @@ class Cmd : public ASTNode {
 class Parser {
     public:
         vector<token> tokens;
-        vector<ASTNode> nodes;
+        vector<ASTNode*> nodes;
         vector<Cmd> program;
 
         Parser(vector<token> toks){
@@ -934,7 +1001,7 @@ class Parser {
             unique_ptr<Variable> varptr = make_unique<Variable>(result.first);
             unique_ptr<VarArg> varargptr = make_unique<VarArg>(VarArg(move(varptr)));   //<argument>
 
-            ReadCmd readcmd(filename, move(varargptr));
+            ReadCmd readcmd{filename, move(varargptr)};
 
             pair<ReadCmd, int> ret = make_pair(readcmd, result.second);
 
