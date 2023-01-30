@@ -20,7 +20,7 @@ def main():
         file = ''.join(file_reader.readlines())
         file_reader.close()
     except Exception:
-        print("Compilation failed!")
+        sys.stdout.write("Compilation failed!")
         exit(0)
 
     if flag == '-l':
@@ -35,11 +35,11 @@ def main():
                     print('END_OF_FILE')
                 else:
                     res = x.t + ' \'' + x.text + '\''
-                    print(res)
-            print('Compilation succeeded: lexical analysis complete')
+                    sys.stdout.write(res)
+            sys.stdout.write('Compilation succeeded: lexical analysis complete')
 
         except mylexer.LexerError as error:
-            print(error.message)
+            sys.stdout.write(error.message)
             exit(0)
 
     elif flag == '-p':
@@ -50,17 +50,17 @@ def main():
 
             newparser = myparser.Parser(newlexer.tokens)
             newparser.parse()
-            print(newparser.to_string())
-            # print('Compilation succeeded')
+            sys.stdout.write(newparser.to_string()[:-1])
+            sys.stdout.write('Compilation succeeded')
         except Exception as exception:
-            # print('Compilation failed')
+            # sys.stdout.write('Compilation failed ' + exception.__str__())
+            sys.stdout.write('Compilation failed')
             exit(0)
-
 
     elif flag == '-t':
         exit(0)
     else:
-        print('A flag (-l, -p, -t) is required')
+        sys.stdout.write('A flag (-l, -p, -t) is required')
 
 
 if __name__ == '__main__':

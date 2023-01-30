@@ -418,7 +418,22 @@ class Parser:
         return vaarg
 
     def parse_expr(self, index):
-        varexp = VariableExpr(Variable(self.expect_tok(index, 'VARIABLE')))
+        t = self.peek_tok(index)
+        if t == 'INTVAL':
+            return IntExpr(self.expect_tok(index, 'INTVAL'))
+        elif t == 'FLOATVAL':
+            return FloatExpr(self.expect_tok(index, 'FLOATVAL'))
+        elif t == 'VARIABLE':
+            return self.parse_variable(index)
+        elif t == 'TRUE':
+            return TrueExpr()
+        elif t == 'FALSE':
+            return FalseExpr()
+        else:
+            ret = 'Unable to find an Expression at ' + str(index)
+            raise ParserException(ret)
+
+
         return varexp
 
     def parse_variable(self, index):
