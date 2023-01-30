@@ -85,7 +85,7 @@ class IntExpr(Expr):
 
     def __init__(self, _intVal : str):
         self.intVal = int(_intVal)
-        if self.intVal < (-2 << 63)  or self.intVal > (2 << 63 - 1):
+        if self.intVal < -pow(2, 63) or self.intVal > ((pow(2, 63)) - 1):
             raise ParserException("You cannot have an int beyond the ranges -2^63 <-> 2^63 - 1")
 
     def to_string(self):
@@ -103,7 +103,7 @@ class FloatExpr(Expr):
 
     def to_string(self):
         ret = '(FloatExpr ' + str(int(self.floatVal)) + ')'
-
+        return ret
 
 class TrueExpr(Expr):
     def to_string(self):
@@ -424,7 +424,7 @@ class Parser:
         elif t == 'FLOATVAL':
             return FloatExpr(self.expect_tok(index, 'FLOATVAL'))
         elif t == 'VARIABLE':
-            return self.parse_variable(index)
+            return VariableExpr(self.parse_variable(index))
         elif t == 'TRUE':
             return TrueExpr()
         elif t == 'FALSE':
