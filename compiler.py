@@ -1,6 +1,7 @@
 import re
 import sys
 import mylexer
+import myparser
 
 def main():
 
@@ -25,8 +26,6 @@ def main():
             newlexer = mylexer.Lexer(file)
             newlexer.runner()
             for x in newlexer.tokens:
-                # print('|',x.text,'|')
-                # print('|', x.t , '|')
                 if x.t == 'NEWLINE':
                     print('NEWLINE')
                 elif x.t == 'END_OF_FILE':
@@ -41,6 +40,14 @@ def main():
             exit(0)
 
     elif flag == '-p':
+        newlexer = mylexer.Lexer(file)
+        newlexer.runner()
+        
+        newparser = myparser.Parser(newlexer.tokens)
+        newparser.parse()
+        print(newparser.to_string())
+
+
         exit(0)
     elif flag == '-t':
         exit(0)
