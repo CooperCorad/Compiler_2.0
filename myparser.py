@@ -359,7 +359,7 @@ class Parser:
     def parse_typecmd(self, index):
         self.expect_tok(index, 'TYPE')
         index += 1
-        var = self.parse_argument(index)
+        var = self.parse_variable(index)
         index += 1
         self.expect_tok(index, 'EQUALS')
         index += 1
@@ -433,8 +433,8 @@ class Parser:
             return FloatType()
         elif tp == 'BOOL':
             return BoolType()
-        elif tp == 'VARIABE':
-            return self.parse_argument(index)
+        elif tp == 'VARIABLE':
+            return VarType(self.parse_variable(index))
         else:
             ret = 'Could not find a type at ' + str(index)
             raise ParserException(ret)
