@@ -1,5 +1,5 @@
 TEST=test.jpl
-FLAG=-l
+FLAG=
 
 all: run
 
