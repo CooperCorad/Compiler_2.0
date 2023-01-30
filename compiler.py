@@ -50,8 +50,8 @@ def main():
 
             newparser = myparser.Parser(newlexer.tokens)
             newparser.parse()
-            sys.stdout.write(newparser.to_string()[:-1])
-            sys.stdout.write('Compilation succeeded')
+            sys.stdout.write(newparser.to_string())
+            sys.stdout.write('\nCompilation succeeded')
         except Exception as exception:
             # sys.stdout.write('Compilation failed ' + exception.__str__())
             sys.stdout.write('Compilation failed')
