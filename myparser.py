@@ -62,9 +62,9 @@ class VarArg(Argument):
 
 
 class ArgLValue(Argument):
-    variable : Variable
+    variable : VarArg
 
-    def __init__(self, _variable : Variable):
+    def __init__(self, _variable : VarArg):
         self.variable = _variable
 
     def to_string(self):
@@ -107,7 +107,7 @@ class FloatExpr(Expr):
 
 class TrueExpr(Expr):
     def to_string(self):
-        ret = '(TrueExper)'
+        ret = '(TrueExpr)'
         return ret
 
 
@@ -456,7 +456,7 @@ class Parser:
 
     def parse_lvalue(self, index):
         var = self.expect_tok(index, 'VARIABLE')
-        lvalue = ArgLValue(Variable(var))
+        lvalue = ArgLValue(VarArg(Variable(var)))
         return lvalue
 
 
