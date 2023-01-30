@@ -28,7 +28,7 @@ import math
 class ParserException(Exception):
     def __init__(self, _message):
         self.message = _message
-        super.__init__(self.message)
+        super().__init__(self.message)
 
 
 class ASTNode:
@@ -42,8 +42,8 @@ class Variable(ASTNode):
     def __init__(self, _variable):
         self.variable = _variable
 
-        def to_string():
-            return self.variable
+    def to_string(self):
+        return self.variable
 
 
 class Argument(ASTNode):
@@ -68,7 +68,7 @@ class ArgLValue(Argument):
         self.variable = _variable
 
     def to_string(self):
-        ret = 'ArgLValue ' + self.variable.to_string() + ')'
+        ret = '(ArgLValue ' + self.variable.to_string() + ')'
         return ret
 
 # expr : <integer>
@@ -129,22 +129,35 @@ class VariableExpr(Expr):
 
 
 class Type(ASTNode):
-    pass
+    def __init__(self):
+        pass
+
+    def to_string(self):
+        return ''
 
 
 class IntType(Type):
+    def __init__(self):
+        pass
+
     def to_string(self):
         ret = '(IntType)'
         return ret
 
 
 class BoolType(Type):
+    def __init__(self):
+        pass
+
     def to_string(self):
         ret = '(BoolType)'
         return ret
 
 
 class FloatType(Type):
+    def __init__(self):
+        pass
+
     def to_string(self):
         ret = '(FloatType)'
         return ret
@@ -193,13 +206,13 @@ class WriteCmd(Cmd):
 
 class TypeCmd(Cmd):
     variable : Variable
-    typeval : Type
 
-    def __init__(self, _variable : Variable, _typeval : Type):
+    def __init__(self, _variable : Variable, _typeval):
         self.variable = _variable
         self.typeval = _typeval
 
     def to_string(self):
+        self.typeval.to_string()
         ret = '(TypeCmd ' + self.variable.to_string() + ' ' + self.typeval.to_string() + ')'
         return ret
 
@@ -267,14 +280,14 @@ class Parser:
         if self.tokens[index].t != toktype:
             ret = 'No token of type ' + toktype + ' found at ' + str(index)
             raise ParserException(ret)
-        return self.tokens[index].string
+        return self.tokens[index].text
 
     def to_string(self):
         ret = ''
         for cmd in self.program:
             ret += cmd.to_string() + '\n'
 
-        return ret
+        return ret[:-1]
 
     def parse(self):
         index = 0
@@ -284,7 +297,11 @@ class Parser:
                 return self.program
             else:
                 cmd, index = self.parse_cmd(index)
-                self.expect_tok(index, 'NEWLINE')
+                try:
+                    self.expect_tok(index, 'NEWLINE')
+                except ParserException as error:
+                    print("Program must end in a newline!")
+                    exit(0)
                 index += 1
                 self.program.append(cmd)
 
@@ -292,26 +309,25 @@ class Parser:
         command = self.peek_tok(index)
 
         if command == 'READ':
-            self.parse_readcmd(index)
+            return self.parse_readcmd(index)
         elif command == 'WRITE':
-            self.parse_writecmd(index)
+            return self.parse_writecmd(index)
         elif command == 'TYPE':
-            self.parse_typecmd(index)
+            return self.parse_typecmd(index)
         elif command == 'LET':
-            self.parse_letcmd(index)
+            return self.parse_letcmd(index)
         elif command == 'ASSERT':
-            self.parse_assertcmd(index)
+            return self.parse_assertcmd(index)
         elif command == 'PRINT':
-            self.parse_printcmd(index)
+            return self.parse_printcmd(index)
         elif command == 'SHOW':
-            self.parse_showcmd(index)
+            return self.parse_showcmd(index)
         else:
             ret = 'Command not found at : ' + str(index)
             raise ParserException(ret)
 
     # read image <string> to <argument>
     def parse_readcmd(self, index):
-        print(index)
         self.expect_tok(index, 'READ')
         index += 1
         self.expect_tok(index, 'IMAGE')
@@ -320,33 +336,114 @@ class Parser:
         index += 1
         self.expect_tok(index, 'TO')
         index += 1
-        argument, index = self.parse_argument(index)
-        print(index)
+        argument = self.parse_argument(index)
+        index += 1
         ret = ReadCmd(filename, argument)
         return ret, index
 
+    # write image <expr> to <string>
     def parse_writecmd(self, index):
-        raise ParserException("write parse not implemented")
+        self.expect_tok(index, 'WRITE')
+        index += 1
+        self.expect_tok(index, 'IMAGE')
+        index += 1
+        expr = self.parse_expr(index)
+        index += 1
+        self.expect_tok(index, 'TO')
+        index += 1
+        filename = self.expect_tok(index, 'STRING')
+        index += 1
+        ret = WriteCmd(expr, filename)
+        return ret, index
 
+    # type <variable> = <type>
     def parse_typecmd(self, index):
-        raise ParserException("type parse not implemented")
+        self.expect_tok(index, 'TYPE')
+        index += 1
+        var = self.parse_argument(index)
+        index += 1
+        self.expect_tok(index, 'EQUALS')
+        index += 1
+        typ = self.parse_type(index)
+        index += 1
+        ret = TypeCmd(var, typ)
+        return ret, index
 
+    # let <lvalue> = <expr>
     def parse_letcmd(self, index):
-        raise ParserException("let parse not implemented")
+        self.expect_tok(index, 'LET')
+        index += 1
+        lval = self.parse_lvalue(index)
+        index += 1
+        self.expect_tok(index, 'EQUALS')
+        index += 1
+        expr = self.parse_expr(index)
+        index += 1
+        ret = LetCmd(lval, expr)
+        return ret, index
 
+    # assert <expr> , <string>
     def parse_assertcmd(self, index):
-        raise ParserException("assert parse not implemented")
+        self.expect_tok(index, 'ASSERT')
+        index += 1
+        expr = self.parse_expr(index)
+        index += 1
+        self.expect_tok(index, 'COMMA')
+        index += 1
+        string = self.expect_tok(index, 'STRING')
+        index += 1
+        ret = AssertCmd(expr, string)
+        return ret, index
 
+    # print <string>
     def parse_printcmd(self, index):
-        raise ParserException("print parse not implemented")
+        self.expect_tok(index, 'PRINT')
+        index += 1
+        string = self.expect_tok(index, 'STRING')
+        index += 1
+        ret = PrintCmd(string)
+        return ret, index
 
+    # show <expr>
     def parse_showcmd(self, index):
-        raise ParserException("show parse not implemented")
+        self.expect_tok(index, 'SHOW')
+        index += 1
+        expr = self.parse_expr(index)
+        index += 1
+        ret = ShowCmd(expr)
+        return ret, index
 
+    # TODO remove index math from these!!
     def parse_argument(self, index):
         vaarg = VarArg(Variable(self.expect_tok(index, 'VARIABLE')))
-        index += 1
-        return vaarg, index
+        return vaarg
+
+    def parse_expr(self, index):
+        varexp = VariableExpr(Variable(self.expect_tok(index, 'VARIABLE')))
+        return varexp
+
+    def parse_variable(self, index):
+        var = Variable(self.expect_tok(index, 'VARIABLE'))
+        return var
+
+    def parse_type(self, index):
+        tp = self.peek_tok(index)
+        if tp == 'INT':
+            return IntType()
+        elif tp == 'FLOAT':
+            return FloatType()
+        elif tp == 'BOOL':
+            return BoolType()
+        elif tp == 'VARIABE':
+            return self.parse_argument(index)
+        else:
+            ret = 'Could not find a type at ' + str(index)
+            raise ParserException(ret)
+
+    def parse_lvalue(self, index):
+        var = self.expect_tok(index, 'VARIABLE')
+        lvalue = ArgLValue(Variable(var))
+        return lvalue
 
 
 

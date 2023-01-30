@@ -7,6 +7,8 @@ def main():
 
     flag = sys.argv[1]
     file_spec = sys.argv[2]
+    # flag = '-p'
+    # file_spec = 'test.jpl'
 
     if flag[0] != '-':
         temp = flag
@@ -40,15 +42,20 @@ def main():
             exit(0)
 
     elif flag == '-p':
-        newlexer = mylexer.Lexer(file)
-        newlexer.runner()
-        
-        newparser = myparser.Parser(newlexer.tokens)
-        newparser.parse()
-        print(newparser.to_string())
+
+        try:
+            newlexer = mylexer.Lexer(file)
+            newlexer.runner()
+
+            newparser = myparser.Parser(newlexer.tokens)
+            newparser.parse()
+            print(newparser.to_string())
+            print('Compilation succeeded')
+        except Exception as exception:
+            print('Compilation failed')
+            exit(0)
 
 
-        exit(0)
     elif flag == '-t':
         exit(0)
     else:
