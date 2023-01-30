@@ -51,9 +51,9 @@ def main():
             newparser = myparser.Parser(newlexer.tokens)
             newparser.parse()
             print(newparser.to_string())
-            print('Compilation succeeded')
+            # print('Compilation succeeded')
         except Exception as exception:
-            print('Compilation failed')
+            # print('Compilation failed')
             exit(0)
 
 

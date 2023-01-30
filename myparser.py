@@ -297,10 +297,11 @@ class Parser:
                 return self.program
             else:
                 cmd, index = self.parse_cmd(index)
-                # index += 1
-                if self.peek_tok(index) != 'END_OF_FILE':
-                    self.expect_tok(index, 'NEWLINE')
-                    index += 1
+                # if self.peek_tok(index) != 'END_OF_FILE':
+                #     self.expect_tok(index, 'NEWLINE')
+                #     index += 1
+                self.expect_tok(index, 'NEWLINE')
+                index += 1
                 self.program.append(cmd)
 
     def parse_cmd(self, index):
