@@ -1,1 +1,3 @@
-let ackjhfcbg___1424..1__ = 13424
+fn f({a[H, W] : a[], b : b}) : a {
+assert a[a, b, c, d, e], ""
+}
