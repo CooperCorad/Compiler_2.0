@@ -180,7 +180,9 @@ class ArrayIndexExpr(Expr):
         self.exprs = _exprs
 
     def to_string(self):
-        ret = '(ArrayIndexExpr ' + self.expr.to_string() + ' '
+        ret = '(ArrayIndexExpr '
+        if self.expr is not None:
+            ret += self.expr.to_string() + ' '
         for exp in self.exprs:
             ret += exp.to_string() + ' '
         ret = ret[:-1] + ')'
@@ -195,7 +197,7 @@ class CallExpr(Expr):
         self.exprs = _vals
 
     def to_string(self):
-        ret = 'CallExpr ' + self.variable.to_string() + ' '
+        ret = '(CallExpr ' + self.variable.to_string() + ' '
         for exp in self.exprs:
             ret += exp.to_string() + ' '
         ret = ret[:-1] + ')'
@@ -766,8 +768,10 @@ class Parser:
 
     def parse_argument(self, index):
         arg, index = self.expect_tok(index, 'VARIABLE')
-        var = Variable(arg)
+        var = VarArg(Variable(arg))
         ret, index = self.parse_argument_cont(var, index)
+        if type(ret) is ArrayArgument:
+            ret.var = Variable(arg)
         return ret, index
 
     def parse_tuple_literal_seq(self, types : [], index : int):
@@ -859,6 +863,7 @@ class Parser:
     def parse_array_index_expr(self, index, vaarg):
         _, index = self.expect_tok(index, 'LSQUARE')
         if self.peek_tok(index) == 'RSQUARE':
+            _, index = self.expect_tok(index, 'RSQUARE')
             return ArrayIndexExpr(vaarg, []), index
         vals, index = self.parse_array_index_expr_cont(index, [])
         ret = ArrayIndexExpr(vaarg, vals)
@@ -869,7 +874,8 @@ class Parser:
     def parse_array_literal_expr(self, index):
         _, index = self.expect_tok(index, 'LSQUARE')
         if self.peek_tok(index) == 'RSQUARE':
-            return ArrayIndexExpr([]), index
+            _, index = self.expect_tok(index, 'RSQUARE')
+            return ArrayLiteralExpr([]), index
         vals, index = self.parse_array_index_expr_cont(index, [])
         ret = ArrayLiteralExpr(vals)
         return ret, index
@@ -984,16 +990,17 @@ class Parser:
             raise ParserException(ret)
 
     def parse_lvalue_cont(self, vals : [], index : int):
-        t = self.peek_tok(index)
-        if t == 'COMMA':
-            index += 1
-        if t == 'RCURLY':
-            index += 1
+        if self.peek_tok(index) == 'COMMA':
+            _, index = self.expect_tok(index, 'COMMA')
+            if self.peek_tok(index) == 'RCURLY':
+                raise ParserException('No hanging commas on your Tuples at: ' + str(index))
+        if self.peek_tok(index) == 'RCURLY':
+            _, index = self.expect_tok(index, 'RCURLY')
             return vals, index
         else:
             lval, index = self.parse_lvalue(index)
             vals.append(lval)
-            return self.parse_lvalue_cont(vals, index), index
+            return self.parse_lvalue_cont(vals, index)
 
     def parse_lvalue(self, index):
         t = self.peek_tok(index)
