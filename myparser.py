@@ -240,13 +240,13 @@ class FloatType(Type):
 
 
 class VarType(Type):
-    vairable: Variable
+    variable : Variable
 
     def __init__(self, _variable: Variable):
-        self.vairable = _variable
+        self.variable = _variable
 
     def to_string(self):
-        ret = '(VarType ' + self.vairable.to_string() + ')'
+        ret = '(VarType ' + self.variable.to_string() + ')'
         return ret
 
 
@@ -1011,7 +1011,11 @@ class Parser:
                 _, index = self.expect_tok(index, 'RCURLY')
                 return TupleType([]), index
             types, index = self.parse_tuple_type_seq([], index)
-            return TupleType(types), index
+            ret = TupleType(types)
+            if self.peek_tok(index) == 'LSQUARE':
+                _, index = self.expect_tok(index, 'LSQUARE')
+                return self.parse_array_type_seq(ret, index, 1)
+            return ret, index
         else:
             ret = 'Could not find a type at ' + str(index)
             raise ParserException(ret)
