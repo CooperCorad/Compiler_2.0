@@ -427,15 +427,18 @@ class FnCmd(Cmd):
 
     #TODO ???
     def to_string(self):
-        ret = '(FnCmd\n ' + self.variable.to_string() + '\n'
-        if len(self.bindings) > 0:
-            ret += ' (' + self.bindings[0].to_string() + '\n'
-            for bnd in self.bindings[1:]:
-                ret += ' ' + bnd.to_string() + '\n'
-        ret += ' ' + self.typ.to_string()
+        ret = '(FnCmd ' + self.variable.to_string() + ' '
+        ret += '('
+        for bnd in self.bindings:
+            ret += bnd.to_string() + ' '
+        if len(self.bindings) == 0:
+            ret += ' '
+        ret = ret[:-1] + ') ' + self.typ.to_string() + ' '
         for stmt in self.stmts:
-            ret += '\n ' + stmt.to_string()
+            ret += stmt.to_string() + ' '
+        ret = ret[:-1] + ')'
         return ret
+
 
 
 class Stmt(ASTNode):
@@ -980,7 +983,11 @@ class Parser:
             return self.parse_booltype(index)
         elif tp == 'VARIABLE':
             var, index = self.parse_variable(index)
-            return VarType(var), index
+            if type(var) is not ArrayType:
+                var = VarType(var)
+            if type(var) is ArrayType:
+                var.type = VarType(var.type)
+            return var, index
         elif tp == 'LCURLY':
             index += 1
             types, index = self.parse_tuple_type_seq([], index)
