@@ -784,16 +784,17 @@ class Parser:
         return ret, index
 
     def parse_tuple_literal_seq(self, types : [], index : int):
+        typ, index = self.parse_expr(index)
+        types.append(typ)
+
         if self.peek_tok(index) == 'COMMA':
-            index += 1
-        if self.peek_tok(index) == 'RCURLY':
-            index += 1
-            return types, index
-        else:
-            typ, index = self.parse_expr(index)
-            types.append(typ)
-            # _, index = self.expect_tok(index, 'COMMA')
+            _, index = self.expect_tok(index, 'COMMA')
             return self.parse_tuple_literal_seq(types, index)
+        if self.peek_tok(index) == 'RCURLY':
+            _, index = self.expect_tok(index, 'RCURLY')
+            return types, index
+
+
 
     def parse_intexpr(self, index):
         num, index = self.expect_tok(index, 'INTVAL')
@@ -855,6 +856,8 @@ class Parser:
             ret = TupleIndexExpr(int(num), vaarg)
             if self.peek_tok(index) == 'LCURLY':
                 return self.parse_tuple_index_expr(index, ret)
+            if self.peek_tok(index) == 'LSQUARE':
+                return self.parse_array_index_expr(index, ret)
             return ret, index
 
     def parse_array_index_expr_cont(self, index, vals: []):
@@ -878,6 +881,8 @@ class Parser:
         ret = ArrayIndexExpr(vaarg, vals)
         if self.peek_tok(index) == 'LSQUARE':
             return self.parse_array_index_expr(index, ret)
+        if self.peek_tok(index) == 'LCURLY':
+            return self.parse_tuple_index_expr(index, ret)
         return ret, index
 
     def parse_array_literal_expr(self, index):
@@ -909,12 +914,19 @@ class Parser:
         elif t == 'FALSE':
             return self.parse_falseexpr(index)
         elif t == 'LCURLY':
-            index += 1
+            _, index = self.expect_tok(index, 'LCURLY')
+            if self.peek_tok(index) == 'RCURLY':
+                _, index = self.expect_tok(index, 'RCURLY')
+                return TupleLiteralExpr([]), index
             types, index = self.parse_tuple_literal_seq([], index)
             ret = TupleLiteralExpr(types)
+            if self.peek_tok(index) == 'LSQUARE':
+                return self.parse_array_index_expr(index, ret)
             return ret, index
         elif t == 'LSQUARE':
             arlit, index = self.parse_array_literal_expr(index)
+            if self.peek_tok(index) == 'LCURLY':
+                return self.parse_tuple_index_expr(index, ret)
             return arlit, index
         elif t == 'LPAREN':
             _, index = self.expect_tok(index, 'LPAREN')
