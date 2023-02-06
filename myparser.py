@@ -940,6 +940,13 @@ class Parser:
     def parse_array_type_seq(self, typ : Type, index : int, count : int):
         if self.peek_tok(index) == 'RSQUARE':
             _, index = self.expect_tok(index, 'RSQUARE')
+            if self.peek_tok(index) == 'LSQUARE':
+                _, index = self.expect_tok(index, 'LSQUARE')
+                return self.parse_array_type_seq(ArrayType(typ, count), index, 1)
+            if self.peek_tok(index) == 'LCURLY':
+                _, index = self.expect_tok(index, 'LCURLY')
+                return self.parse_tuple_type_seq([], index)
+
             return ArrayType(typ, count), index
         elif self.peek_tok(index) == 'COMMA':
             index += 1
@@ -1009,6 +1016,9 @@ class Parser:
             _, index = self.expect_tok(index, 'LCURLY')
             if self.peek_tok(index) == 'RCURLY':
                 _, index = self.expect_tok(index, 'RCURLY')
+                if self.peek_tok(index) == 'LSQUARE':
+                    _, index = self.expect_tok(index, 'LSQUARE')
+                    return self.parse_array_type_seq(TupleType([]), index, 1)
                 return TupleType([]), index
             types, index = self.parse_tuple_type_seq([], index)
             ret = TupleType(types)
