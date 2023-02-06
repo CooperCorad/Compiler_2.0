@@ -736,8 +736,8 @@ class Parser:
             return self.parse_stmt_seq_cont(index, vals)
 
     def parse_stmt_seq(self, index):
-        x, y = self.parse_stmt_seq_cont(index, [])
-        return x, y
+        return self.parse_stmt_seq_cont(index, [])
+
 
     def parse_fncmd(self, index):
         _, index = self.expect_tok(index, 'FN')
@@ -932,6 +932,8 @@ class Parser:
             _, index = self.expect_tok(index, 'LPAREN')
             expr, index = self.parse_expr(index)
             _, index = self.expect_tok(index, 'RPAREN')
+            if self.peek_tok(index) == 'LSQUARE':
+                return self.parse_array_index_expr(index, expr)
             return expr, index
         else:
             ret = 'Unable to find an Expression at ' + str(index)
