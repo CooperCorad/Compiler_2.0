@@ -851,18 +851,17 @@ class Parser:
                 return self.parse_tuple_index_expr(index, ret)
             return ret, index
 
-    def parse_array_index_expr_cont(self, index, vals : []):
+    def parse_array_index_expr_cont(self, index, vals: []):
+        val, index = self.parse_expr(index)
+        vals.append(val)
+
         if self.peek_tok(index) == 'COMMA':
             _, index = self.expect_tok(index, 'COMMA')
-            if self.peek_tok(index) == 'RSQUARE':
-                raise ParserException('You cannot have a hanging comma a ' + str(index))
+            return self.parse_array_index_expr_cont(index, vals)
+
         if self.peek_tok(index) == 'RSQUARE':
             _, index = self.expect_tok(index, 'RSQUARE')
             return vals, index
-        else:
-            val, index = self.parse_expr(index)
-            vals.append(val)
-            return self.parse_array_index_expr_cont(index, vals)
 
     def parse_array_index_expr(self, index, vaarg):
         _, index = self.expect_tok(index, 'LSQUARE')
