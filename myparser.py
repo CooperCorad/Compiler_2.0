@@ -686,6 +686,9 @@ class Parser:
 
     def parse_binding_seq(self, index):
         _, index = self.expect_tok(index, 'LPAREN')
+        if self.peek_tok(index) == 'RPAREN':
+            _, index = self.expect_tok(index, 'RPAREN')
+            return [], index
         bnds, index = self.parse_binding_seq_cont(index, [])
         return bnds, index
 
@@ -991,7 +994,10 @@ class Parser:
                 var.type = VarType(var.type)
             return var, index
         elif tp == 'LCURLY':
-            index += 1
+            _, index = self.expect_tok(index, 'LCURLY')
+            if self.peek_tok(index) == 'RCURLY':
+                _, index = self.expect_tok(index, 'RCURLY')
+                return TupleType([]), index
             types, index = self.parse_tuple_type_seq([], index)
             return TupleType(types), index
         else:
