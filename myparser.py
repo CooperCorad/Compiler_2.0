@@ -321,7 +321,8 @@ class ReadCmd(Cmd):
         self.vararg = _vararg
 
     def to_string(self):
-        ret = '(ReadCmd ' + self.filename + ' ' + self.vararg.to_string() + ')'
+        ret = '(ReadCmd ' + self.filename + ' '
+        ret += self.vararg.to_string() + ')'
         return ret
 
 
@@ -586,7 +587,7 @@ class Parser:
         filename, index = self.expect_tok(index, 'STRING')
         _, index = self.expect_tok(index, 'TO')
         argument, index = self.parse_argument(index)
-        ret = ReadCmd(filename, [argument])
+        ret = ReadCmd(filename, argument)
         return ret, index
 
     # write image <expr> to <string>
