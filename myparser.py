@@ -535,10 +535,10 @@ class Parser:
 
     def to_string(self):
         ret = ''
-        num = 0
+        # num = 0
         for cmd in self.program:
-            print(num)
-            num += 1
+            # print(num)
+            # num += 1
             ret += cmd.to_string() + '\n'
 
         return ret[:-1]
