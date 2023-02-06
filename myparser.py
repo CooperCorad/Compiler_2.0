@@ -535,7 +535,10 @@ class Parser:
 
     def to_string(self):
         ret = ''
+        num = 0
         for cmd in self.program:
+            print(num)
+            num += 1
             ret += cmd.to_string() + '\n'
 
         return ret[:-1]
@@ -671,17 +674,15 @@ class Parser:
         return VarBinding(arg, typ), index
 
     def parse_binding_seq_cont(self, index, vals : []):
+        bnd, index = self.parse_binding(index)
+        vals.append(bnd)
+
         if self.peek_tok(index) == 'COMMA':
             _, index = self.expect_tok(index, 'COMMA')
-            if self.peek_tok(index) == 'RPAREN':
-                raise ParserException('You cannot have hanging comma on binding tuple at ' + str(index))
+            return self.parse_binding_seq_cont(index, vals)
         if self.peek_tok(index) == 'RPAREN':
             _, index = self.expect_tok(index, 'RPAREN')
             return vals, index
-        else:
-            bnd, index = self.parse_binding(index)
-            vals.append(bnd)
-            return self.parse_binding_seq_cont(index, vals)
 
     def parse_binding_seq(self, index):
         _, index = self.expect_tok(index, 'LPAREN')
@@ -732,7 +733,8 @@ class Parser:
             return self.parse_stmt_seq_cont(index, vals)
 
     def parse_stmt_seq(self, index):
-        return self.parse_stmt_seq_cont(index, [])
+        x, y = self.parse_stmt_seq_cont(index, [])
+        return x, y
 
     def parse_fncmd(self, index):
         _, index = self.expect_tok(index, 'FN')
@@ -799,21 +801,22 @@ class Parser:
         return self.parse_expr_cont(index, FloatExpr(num))
 
     def parse_call_seq(self, index, vals : []):
+        val, index = self.parse_expr(index)
+        vals.append(val)
+
         if self.peek_tok(index) == 'COMMA':
             _, index = self.expect_tok(index, 'COMMA')
-            if self.peek_tok(index) == 'RPAREN':
-                raise ParserException('You cannot have a hanging comma at ' + str(index))
+            return self.parse_call_seq(index, vals)
         if self.peek_tok(index) == 'RPAREN':
             _, index = self.expect_tok(index, 'RPAREN')
             return vals, index
-        else:
-            val, index = self.parse_expr(index)
-            vals.append(val)
-            return self.parse_call_seq(index, vals)
 
     def parse_callexpr(self, index, varxpr):
         if self.peek_tok(index) == 'LPAREN':
             _, index = self.expect_tok(index, 'LPAREN')
+            if self.peek_tok(index) == 'RPAREN':
+                _, index = self.expect_tok(index, 'RPAREN')
+                return CallExpr(varxpr, []), index
             exprs, index = self.parse_call_seq(index, [])
             return CallExpr(varxpr, exprs), index
 
@@ -929,18 +932,17 @@ class Parser:
             return self.parse_array_type_seq(typ, index, count)
 
     def parse_tuple_type_seq(self, types : [], index : int):
+        typ, index = self.parse_type(index)
+        types.append(typ)
+
         if self.peek_tok(index) == 'COMMA':
             _, index = self.expect_tok(index, 'COMMA')
-            if self.peek_tok(index) == 'RCURLY':
-                raise ParserException('Cannot have hanging comma at ' + str(index))
+            return self.parse_tuple_type_seq(types, index)
         if self.peek_tok(index) == 'RCURLY':
             _, index = self.expect_tok(index, 'RCURLY')
             return types, index
-        else:
-            typ, index = self.parse_type(index)
-            types.append(typ)
-            # _, index = self.expect_tok(index, 'COMMA')
-            return self.parse_tuple_type_seq(types, index)
+
+
 
     def parse_type_cont(self, typ : Type, index):
         if self.peek_tok(index) == 'LSQUARE':
@@ -1019,6 +1021,9 @@ class Parser:
             _, index = self.expect_tok(index, 'LCURLY')
             vals, index = self.parse_lvalue_cont([], index)
             return TupleLValue(vals), index
+
+
+
 
 
 
