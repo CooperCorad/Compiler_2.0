@@ -1,3 +1,1 @@
-fn f({a[H, W] : a[], b : b}) : a {
-assert a[a, b, c, d, e], ""
-}
+assert a[a[a[a]][a[a]]][a[a]], ""

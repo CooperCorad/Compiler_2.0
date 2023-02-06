@@ -407,6 +407,7 @@ class TimeCmd(Cmd):
         ret = '(TimeCmd ' + self.cmd.to_string() + ')'
         return ret
 
+
 # fn <variable> ( <binding> , ... ) : <type> { ;
 #            <stmt> ; ... ;
 #        }
@@ -655,6 +656,7 @@ class Parser:
 
     def parse_binding(self, index):
         if self.peek_tok(index) == 'LCURLY':
+            _, index = self.expect_tok(index, 'LCURLY')
             bndtp, index = self.parse_binding_tuple(index, [])
             return TupleBinding(bndtp), index
         arg, index = self.parse_argument(index)
@@ -836,7 +838,10 @@ class Parser:
         if self.peek_tok(index) == 'INTVAL' and self.peek_tok(lookahead) == 'RCURLY':
             num, index = self.expect_tok(index, 'INTVAL')
             _, index = self.expect_tok(index, 'RCURLY')
-            return TupleIndexExpr(int(num), vaarg), index
+            ret = TupleIndexExpr(int(num), vaarg)
+            if self.peek_tok(index) == 'LCURLY':
+                return self.parse_tuple_index_expr(index, ret)
+            return ret, index
 
     def parse_array_index_expr_cont(self, index, vals : []):
         if self.peek_tok(index) == 'COMMA':
@@ -857,6 +862,8 @@ class Parser:
             return ArrayIndexExpr(vaarg, []), index
         vals, index = self.parse_array_index_expr_cont(index, [])
         ret = ArrayIndexExpr(vaarg, vals)
+        if self.peek_tok(index) == 'LSQUARE':
+            return self.parse_array_index_expr(index, ret)
         return ret, index
 
     def parse_array_literal_expr(self, index):
