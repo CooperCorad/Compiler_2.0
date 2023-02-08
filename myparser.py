@@ -514,13 +514,13 @@ class TupleBinding(Binding):
         ret = ret[:-1] + ')'
         return ret
 
-
 class Parser:
     tokens = []
     program = []
 
     def __init__(self, _tokens):
         self.tokens = _tokens
+
 
     def peek_tok(self, index):
         return self.tokens[index].t
@@ -535,10 +535,7 @@ class Parser:
 
     def to_string(self):
         ret = ''
-        # num = 0
         for cmd in self.program:
-            # print(num)
-            # num += 1
             ret += cmd.to_string() + '\n'
 
         return ret[:-1]
@@ -554,7 +551,6 @@ class Parser:
                 # if self.peek_tok(index) != 'END_OF_FILE':
                 #     self.expect_tok(index, 'NEWLINE')
                 #     index += 1
-
                 _, index = self.expect_tok(index, 'NEWLINE')
                 self.program.append(cmd)
 
@@ -644,52 +640,56 @@ class Parser:
         ret = ShowCmd(expr)
         return ret, index
 
-    # time <cmd>
     def parse_timecmd(self, index):
         _, index = self.expect_tok(index, 'TIME')
         cmd, index = self.parse_cmd(index)
         return TimeCmd(cmd), index
 
-    def parse_binding_tuple(self, index, vals : []):
+    def parse_tuplebinding(self, index, bnds):
+        bnd, index = self.parse_binding(index)
+        bnds.append(bnd)
+
         if self.peek_tok(index) == 'COMMA':
             _, index = self.expect_tok(index, 'COMMA')
-            if self.peek_tok(index) == 'RCURLY':
-                raise ParserException('You cannot have hanging comma on binding tuple at ' + str(index))
+            return self.parse_tuplebinding(index, bnds)
         if self.peek_tok(index) == 'RCURLY':
             _, index = self.expect_tok(index, 'RCURLY')
-            return vals, index
-        else:
-            val, index = self.parse_binding(index)
-            vals.append(val)
-            return self.parse_binding_tuple(index, vals)
+            return bnds, index
 
     def parse_binding(self, index):
         if self.peek_tok(index) == 'LCURLY':
             _, index = self.expect_tok(index, 'LCURLY')
-            bndtp, index = self.parse_binding_tuple(index, [])
-            return TupleBinding(bndtp), index
-        arg, index = self.parse_argument(index)
-        _, index = self.expect_tok(index, 'COLON')
-        typ, index = self.parse_type(index)
-        return VarBinding(arg, typ), index
+            if self.peek_tok(index) == 'RCURLY':
+                _, index = self.expect_tok(index, 'RCURLY')
+                return TupleBinding([]), index
+            else:
+                bnds, index = self.parse_tuplebinding(index, [])
+                return TupleBinding(bnds), index
+        else:
+            arg, index = self.parse_argument(index)
+            _, index = self.expect_tok(index, 'COLON')
+            typ, index = self.parse_type(index)
+            return VarBinding(arg, typ), index
 
-    def parse_binding_seq_cont(self, index, vals : []):
+    def parse_binding_seq(self, index, bnds):
         bnd, index = self.parse_binding(index)
-        vals.append(bnd)
+        bnds.append(bnd)
 
         if self.peek_tok(index) == 'COMMA':
             _, index = self.expect_tok(index, 'COMMA')
-            return self.parse_binding_seq_cont(index, vals)
+            return self.parse_binding_seq(index, bnds)
         if self.peek_tok(index) == 'RPAREN':
             _, index = self.expect_tok(index, 'RPAREN')
-            return vals, index
+            return bnds, index
 
-    def parse_binding_seq(self, index):
+    def parse_fnbindings(self, index):
         _, index = self.expect_tok(index, 'LPAREN')
+
         if self.peek_tok(index) == 'RPAREN':
             _, index = self.expect_tok(index, 'RPAREN')
             return [], index
-        bnds, index = self.parse_binding_seq_cont(index, [])
+
+        bnds, index = self.parse_binding_seq(index, [])
         return bnds, index
 
     def parse_letstmt(self, index):
@@ -697,104 +697,88 @@ class Parser:
         lval, index = self.parse_lvalue(index)
         _, index = self.expect_tok(index, 'EQUALS')
         expr, index = self.parse_expr(index)
-        ret = LetStmt(lval, expr)
-        return ret, index
+        return LetStmt(lval, expr), index
 
     def parse_assertstmt(self, index):
         _, index = self.expect_tok(index, 'ASSERT')
         expr, index = self.parse_expr(index)
         _, index = self.expect_tok(index, 'COMMA')
         string, index = self.expect_tok(index, 'STRING')
-        ret = AssertStmt(expr, string)
-        return ret, index
+        return AssertStmt(expr, string), index
 
     def parse_returnstmt(self, index):
         _, index = self.expect_tok(index, 'RETURN')
         expr, index = self.parse_expr(index)
-        ret = ReturnStmt(expr)
-        return ret, index
+        return ReturnStmt(expr), index
 
     def parse_stmt(self, index):
         t = self.peek_tok(index)
 
         if t == 'LET':
             return self.parse_letstmt(index)
-        elif t == 'ASSERT':
+        if t == 'ASSERT':
             return self.parse_assertstmt(index)
-        elif t == 'RETURN':
+        if t == 'RETURN':
             return self.parse_returnstmt(index)
         else:
-            raise ParserException('No statement could be found at ' + str(index))
+            raise ParserException('Could not find stmt at index ' + str(index))
 
-    def parse_stmt_seq_cont(self, index, vals : []):
-        if self.peek_tok(index) == 'RCURLY':
-            return vals, index
-        else:
-            stmt, index = self.parse_stmt(index)
+    def parse_stmt_seq(self, index, stmts):
+        stmt, index = self.parse_stmt(index)
+        stmts.append(stmt)
+
+        if self.peek_tok(index) == 'NEWLINE':
             _, index = self.expect_tok(index, 'NEWLINE')
-            vals.append(stmt)
-            return self.parse_stmt_seq_cont(index, vals)
+            if self.peek_tok(index) == 'RCURLY':
+                _, index = self.expect_tok(index, 'RCURLY')
+                return stmts, index
+            return self.parse_stmt_seq(index, stmts)
 
-    def parse_stmt_seq(self, index):
-        return self.parse_stmt_seq_cont(index, [])
-
+    def parse_stmt_list(self, index):
+        while self.peek_tok(index) == 'NEWLINE':
+            _, index = self.expect_tok(index, 'NEWLINE')
+        if self.peek_tok(index) == 'RCURLY':
+            _, index = self.expect_tok(index, 'RCURLY')
+            return [], index
+        return self.parse_stmt_seq(index, [])
 
     def parse_fncmd(self, index):
         _, index = self.expect_tok(index, 'FN')
-        var, index = self.expect_tok(index, 'VARIABLE')
-        var = Variable(var)                             # TODO which to chose?
-        # var, index = self.parse_variable(index)
-        bnds, index = self.parse_binding_seq(index)
+        var, index = self.parse_variable(index)
+        bnds, index = self.parse_fnbindings(index)
         _, index = self.expect_tok(index, 'COLON')
         typ, index = self.parse_type(index)
         _, index = self.expect_tok(index, 'LCURLY')
-        _, index = self.expect_tok(index, 'NEWLINE')
-        stmts, index = self.parse_stmt_seq(index)
-        _, index = self.expect_tok(index, 'RCURLY')
+        stmts, index = self.parse_stmt_list(index)
+
         return FnCmd(var, bnds, typ, stmts), index
 
-    def parse_array_argument(self, vals : [], index : int):
+    def parse_arrayargument_seq(self, index, vals):
+        var, index = self.parse_variable(index)
+        vals.append(var)
+
         if self.peek_tok(index) == 'COMMA':
             _, index = self.expect_tok(index, 'COMMA')
-            if self.peek_tok(index) == 'RSQUARE':
-                raise ParserException('Cannot have hanging comma at ' + str(index))
+            return self.parse_arrayargument_seq(index, vals)
         if self.peek_tok(index) == 'RSQUARE':
             _, index = self.expect_tok(index, 'RSQUARE')
             return vals, index
-        else:
-            var, index = self.parse_variable(index)
-            vals.append(var)
-            return self.parse_array_argument(vals, index)
 
-    def parse_argument_cont(self, var : Variable, index : int):
-        if self.peek_tok(index) == 'LSQUARE':
-            _, index = self.expect_tok(index, 'LSQUARE')
-            args, index = self.parse_array_argument([], index)
-            ret = ArrayArgument(var, args)
-            return ret, index
+    def parse_arrayargument(self, index, var):
+        _, index = self.expect_tok(index, 'LSQUARE')
+        if self.peek_tok(index) == 'RSQUARE':
+            _, index = self.expect_tok(index, 'RSQUARE')
+            return ArrayArgument(var, []), index
         else:
-            return var, index
+            vrs, index = self.parse_arrayargument_seq(index, [])
+            return ArrayArgument(var, vrs), index
 
     def parse_argument(self, index):
-        arg, index = self.expect_tok(index, 'VARIABLE')
-        var = VarArg(Variable(arg))
-        ret, index = self.parse_argument_cont(var, index)
-        if type(ret) is ArrayArgument:
-            ret.var = Variable(arg)
-        return ret, index
-
-    def parse_tuple_literal_seq(self, types : [], index : int):
-        typ, index = self.parse_expr(index)
-        types.append(typ)
-
-        if self.peek_tok(index) == 'COMMA':
-            _, index = self.expect_tok(index, 'COMMA')
-            return self.parse_tuple_literal_seq(types, index)
-        if self.peek_tok(index) == 'RCURLY':
-            _, index = self.expect_tok(index, 'RCURLY')
-            return types, index
-
-
+        var, index = self.parse_variable(index)
+        if self.peek_tok(index) == 'LSQUARE':
+            return self.parse_arrayargument(index, var)
+        vaarg = VarArg(var)
+        return vaarg, index
 
     def parse_intexpr(self, index):
         num, index = self.expect_tok(index, 'INTVAL')
@@ -804,102 +788,127 @@ class Parser:
         num, index = self.expect_tok(index, 'FLOATVAL')
         return self.parse_expr_cont(index, FloatExpr(num))
 
-    def parse_call_seq(self, index, vals : []):
+    def parse_variableexpr(self, index):
+        var, index = self.parse_variable(index)
+        varexp = VariableExpr(var)
+        return self.parse_expr_cont(index, varexp)
+
+    def parse_trueexpr(self, index):
+        expr, index = self.expect_tok(index, 'TRUE')
+        return self.parse_expr_cont(index, TrueExpr())
+
+    def parse_falseexper(self, index):
+        expr, index = self.expect_tok(index, 'FALSE')
+        return self.parse_expr_cont(index, FalseExpr())
+
+    def parse_callexpr_seq(self, index, vals):
         val, index = self.parse_expr(index)
         vals.append(val)
 
         if self.peek_tok(index) == 'COMMA':
             _, index = self.expect_tok(index, 'COMMA')
-            return self.parse_call_seq(index, vals)
+            return self.parse_callexpr_seq(index, vals)
         if self.peek_tok(index) == 'RPAREN':
             _, index = self.expect_tok(index, 'RPAREN')
             return vals, index
 
-    def parse_callexpr(self, index, varxpr):
-        if self.peek_tok(index) == 'LPAREN':
-            _, index = self.expect_tok(index, 'LPAREN')
-            if self.peek_tok(index) == 'RPAREN':
-                _, index = self.expect_tok(index, 'RPAREN')
-                return CallExpr(varxpr, []), index
-            exprs, index = self.parse_call_seq(index, [])
-            return CallExpr(varxpr, exprs), index
+    def parse_callexpr(self, index, var):
+        _, index = self.expect_tok(index, 'LPAREN')
+        if self.peek_tok(index) == 'RPAREN':
+            _, index = self.expect_tok(index, 'RPAREN')
+            return CallExpr(var, []), index
+        else:
+            exprs, index = self.parse_callexpr_seq(index, [])
+            return CallExpr(var, exprs), index
 
-        return varxpr, index
+    def parse_arrayindexexpr_seq(self, index, exprs : []):
+        val, index = self.parse_expr(index)
+        exprs.append(val)
 
-    def parse_variableexpr_cont(self, index):
-        string, index = self.expect_tok(index, 'VARIABLE')
-        var = Variable(string)
+        if self.peek_tok(index) == 'COMMA':
+            _, index = self.expect_tok(index, 'COMMA')
+            return self.parse_arrayindexexpr_seq(index, exprs)
+        if self.peek_tok(index) == 'RSQUARE':
+            _, index = self.expect_tok(index, 'RSQUARE')
+            return exprs, index
 
-        var, index = self.parse_callexpr(index, var)
-        return var, index
+    def parse_arrayindexexpr(self, index, expr):
+        _, index = self.expect_tok(index, 'LSQUARE')
+        if self.peek_tok(index) == 'RSQUARE':
+            _, index = self.expect_tok(index, 'RSQUARE')
+            return ArrayIndexExpr(expr, []), index
+        else:
+            exprs, index = self.parse_arrayindexexpr_seq(index, [])
+            return ArrayIndexExpr(expr, exprs), index
 
-    def parse_variableexpr(self, index):
-        var, index = self.parse_variableexpr_cont(index)
-        if type(var) is not CallExpr:
-            var = VariableExpr(var)
-        return self.parse_expr_cont(index, var)
-
-    def parse_trueexpr(self, index):
-        _, index = self.expect_tok(index, 'TRUE')
-        return self.parse_expr_cont(index, TrueExpr())
-
-    def parse_falseexpr(self, index):
-        _, index = self.expect_tok(index, 'FALSE')
-        return self.parse_expr_cont(index, FalseExpr())
-
-    def parse_tuple_index_expr(self, index, vaarg):
+    def parse_tupleindexexpr(self, index, expr):
         _, index = self.expect_tok(index, 'LCURLY')
-        lookahead = index + 1
-        if self.peek_tok(index) == 'INTVAL' and self.peek_tok(lookahead) == 'RCURLY':
-            num, index = self.expect_tok(index, 'INTVAL')
-            _, index = self.expect_tok(index, 'RCURLY')
-            ret = TupleIndexExpr(int(num), vaarg)
-            if self.peek_tok(index) == 'LCURLY':
-                return self.parse_tuple_index_expr(index, ret)
-            if self.peek_tok(index) == 'LSQUARE':
-                return self.parse_array_index_expr(index, ret)
-            return ret, index
+        num, index = self.expect_tok(index, 'INTVAL')
+        _, index = self.expect_tok(index, 'RCURLY')
+        return TupleIndexExpr(int(num), expr), index
 
-    def parse_array_index_expr_cont(self, index, vals: []):
+    def parse_tupleliteralexpr_seq(self, index, vals):
         val, index = self.parse_expr(index)
         vals.append(val)
 
         if self.peek_tok(index) == 'COMMA':
             _, index = self.expect_tok(index, 'COMMA')
-            return self.parse_array_index_expr_cont(index, vals)
+            return self.parse_tupleliteralexpr_seq(index, vals)
+        if self.peek_tok(index) == 'RCURLY':
+            _, index = self.expect_tok(index, 'RCURLY')
+            return vals, index
 
+    def parse_tupleliteralexpr(self, index):
+        _, index = self.expect_tok(index, 'LCURLY')
+        if self.peek_tok(index) == 'RCURLY':
+            _, index = self.expect_tok(index, 'RCURLY')
+            return self.parse_expr_cont(index, TupleLiteralExpr([]))
+        else:
+            exprs, index = self.parse_tupleliteralexpr_seq(index, [])
+            return self.parse_expr_cont(index, TupleLiteralExpr(exprs))
+
+    def parse_arrayliteralexpr_seq(self, index, vals):
+        val, index = self.parse_expr(index)
+        vals.append(val)
+
+        if self.peek_tok(index) == 'COMMA':
+            _, index = self.expect_tok(index, 'COMMA')
+            return self.parse_arrayliteralexpr_seq(index, vals)
         if self.peek_tok(index) == 'RSQUARE':
             _, index = self.expect_tok(index, 'RSQUARE')
             return vals, index
 
-    def parse_array_index_expr(self, index, vaarg):
+    def parse_arrayliteralexpr(self, index):
         _, index = self.expect_tok(index, 'LSQUARE')
         if self.peek_tok(index) == 'RSQUARE':
             _, index = self.expect_tok(index, 'RSQUARE')
-            return ArrayIndexExpr(vaarg, []), index
-        vals, index = self.parse_array_index_expr_cont(index, [])
-        ret = ArrayIndexExpr(vaarg, vals)
-        if self.peek_tok(index) == 'LSQUARE':
-            return self.parse_array_index_expr(index, ret)
-        if self.peek_tok(index) == 'LCURLY':
-            return self.parse_tuple_index_expr(index, ret)
-        return ret, index
+            return self.parse_expr_cont(index, ArrayLiteralExpr([]))
+        else:
+            exprs, index = self.parse_arrayliteralexpr_seq(index, [])
+            return self.parse_expr_cont(index, ArrayLiteralExpr(exprs))
 
-    def parse_array_literal_expr(self, index):
-        _, index = self.expect_tok(index, 'LSQUARE')
-        if self.peek_tok(index) == 'RSQUARE':
-            _, index = self.expect_tok(index, 'RSQUARE')
-            return ArrayLiteralExpr([]), index
-        vals, index = self.parse_array_index_expr_cont(index, [])
-        ret = ArrayLiteralExpr(vals)
-        return ret, index
+    def parse_parenexpr(self, index):
+        _, index = self.expect_tok(index, 'LPAREN')
+        expr, index = self.parse_expr(index)
+        _, index = self.expect_tok(index, 'RPAREN')
+        return self.parse_expr_cont(index, expr)
 
-    def parse_expr_cont(self, index, vaarg):
-        if self.peek_tok(index) == 'LCURLY':
-            return self.parse_tuple_index_expr(index, vaarg)
-        elif self.peek_tok(index) == 'LSQUARE':
-            return self.parse_array_index_expr(index, vaarg)
-        return vaarg, index
+    def parse_expr_cont(self, index, expr):
+        t = self.peek_tok(index)
+        # <variable> ( <expr> , ... ) --> Call Expr
+        if t == 'LPAREN' and type(expr) is VariableExpr:
+            expr = expr.variable
+            call, index = self.parse_callexpr(index, expr)
+            return self.parse_expr_cont(index, call)
+        # <expr> { <integer> }  --> Tuple Indexer
+        elif t == 'LCURLY':
+            tie, index = self.parse_tupleindexexpr(index, expr)
+            return self.parse_expr_cont(index, tie)
+        # <expr> [ <expr> , ... ] --> Array indexer
+        elif t == 'LSQUARE':
+            aie, index = self.parse_arrayindexexpr(index, expr)
+            return self.parse_expr_cont(index, aie)
+        return expr, index
 
     def parse_expr(self, index):
         t = self.peek_tok(index)
@@ -912,92 +921,82 @@ class Parser:
         elif t == 'TRUE':
             return self.parse_trueexpr(index)
         elif t == 'FALSE':
-            return self.parse_falseexpr(index)
+            return self.parse_falseexper(index)
+        # { <expr> , ... } --> Tuple Literal
         elif t == 'LCURLY':
-            _, index = self.expect_tok(index, 'LCURLY')
-            if self.peek_tok(index) == 'RCURLY':
-                _, index = self.expect_tok(index, 'RCURLY')
-                return TupleLiteralExpr([]), index
-            types, index = self.parse_tuple_literal_seq([], index)
-            ret = TupleLiteralExpr(types)
-            if self.peek_tok(index) == 'LSQUARE':
-                return self.parse_array_index_expr(index, ret)
-            return ret, index
+            return self.parse_tupleliteralexpr(index)
+        # [ <expr> , ... ] --> Array Literal
         elif t == 'LSQUARE':
-            arlit, index = self.parse_array_literal_expr(index)
-            if self.peek_tok(index) == 'LCURLY':
-                return self.parse_tuple_index_expr(index, ret)
-            return arlit, index
+            return self.parse_arrayliteralexpr(index)
+        # ( <expr> ) --> Parenthasized expr
         elif t == 'LPAREN':
-            _, index = self.expect_tok(index, 'LPAREN')
-            expr, index = self.parse_expr(index)
-            _, index = self.expect_tok(index, 'RPAREN')
-            if self.peek_tok(index) == 'LSQUARE':
-                return self.parse_array_index_expr(index, expr)
-            return expr, index
+            return self.parse_parenexpr(index)
         else:
             ret = 'Unable to find an Expression at ' + str(index)
             raise ParserException(ret)
 
-    def parse_array_type_seq(self, typ : Type, index : int, count : int):
-        if self.peek_tok(index) == 'RSQUARE':
-            _, index = self.expect_tok(index, 'RSQUARE')
-            if self.peek_tok(index) == 'LSQUARE':
-                _, index = self.expect_tok(index, 'LSQUARE')
-                return self.parse_array_type_seq(ArrayType(typ, count), index, 1)
-            if self.peek_tok(index) == 'LCURLY':
-                _, index = self.expect_tok(index, 'LCURLY')
-                return self.parse_tuple_type_seq([], index)
-
-            return ArrayType(typ, count), index
-        elif self.peek_tok(index) == 'COMMA':
-            index += 1
-            count += 1
-            return self.parse_array_type_seq(typ, index, count)
-
-    def parse_tuple_type_seq(self, types : [], index : int):
-        typ, index = self.parse_type(index)
-        types.append(typ)
-
-        if self.peek_tok(index) == 'COMMA':
-            _, index = self.expect_tok(index, 'COMMA')
-            return self.parse_tuple_type_seq(types, index)
-        if self.peek_tok(index) == 'RCURLY':
-            _, index = self.expect_tok(index, 'RCURLY')
-            return types, index
-
-
-
-    def parse_type_cont(self, typ : Type, index):
-        if self.peek_tok(index) == 'LSQUARE':
-            _, index = self.expect_tok(index, 'LSQUARE')
-            return self.parse_array_type_seq(typ, index, 1)
-        else:
-            return typ, index
-
     def parse_inttype(self, index):
         _, index = self.expect_tok(index, 'INT')
-        ret, index = self.parse_type_cont(IntType(), index)
-        return ret, index
+        return self.parse_type_cont(index, IntType())
 
     def parse_floattype(self, index):
         _, index = self.expect_tok(index, 'FLOAT')
-        ret, index = self.parse_type_cont(FloatType(), index)
-        return ret, index
+        return self.parse_type_cont(index, FloatType())
 
     def parse_booltype(self, index):
         _, index = self.expect_tok(index, 'BOOL')
-        ret, index = self.parse_type_cont(BoolType(), index)
-        return ret, index
+        return self.parse_type_cont(index, BoolType())
 
-    def parse_variable(self, index):
-        string, index = self.expect_tok(index, 'VARIABLE')
-        var = Variable(string)
-        var, index = self.parse_type_cont(var, index)
+    def parse_variabletype(self, index):
+        var, index = self.parse_variable(index)
+        return self.parse_type_cont(index, VarType(var))
 
-        # ret, index = self.parse_type_cont(VarType(var), index)
-        # return ret, index
-        return var, index
+    def parse_array_type_seq(self, index, count):
+        _, index = self.expect_tok(index, 'COMMA')
+        count += 1
+
+        if self.peek_tok(index) == 'RSQUARE':
+            _, index = self.expect_tok(index, 'RSQUARE')
+            return count, index
+        else:
+            return self.parse_array_type_seq(index, count)
+
+    def parse_array_type(self, index, in_type):
+        _, index = self.expect_tok(index, 'LSQUARE')
+        if self.peek_tok(index) == 'RSQUARE':
+            _, index = self.expect_tok(index, 'RSQUARE')
+            return ArrayType(in_type, 1), index
+        else:
+            count, index = self.parse_array_type_seq(index, 1)
+            return ArrayType(in_type, count), index
+
+    def parse_tuple_type_seq(self, index, typs : []):
+        typ, index = self.parse_type(index)
+        typs.append(typ)
+
+        if self.peek_tok(index) == 'COMMA':
+            _, index = self.expect_tok(index, 'COMMA')
+            return self.parse_tuple_type_seq(index, typs)
+        if self.peek_tok(index) == 'RCURLY':
+            _, index = self.expect_tok(index, 'RCURLY')
+            return typs, index
+
+    def parse_tuple_type(self, index):
+        _, index = self.expect_tok(index, 'LCURLY')
+        if self.peek_tok(index) == 'RCURLY':
+            _, index = self.expect_tok(index, 'RCURLY')
+            return self.parse_type_cont(index, TupleType([]))
+        else:
+            res, index = self.parse_tuple_type_seq(index, [])
+            return self.parse_type_cont(index, TupleType(res))
+
+    def parse_type_cont(self, index, in_type):
+        t = self.peek_tok(index)
+        # <type> [ , ... ] --> Array type
+        if t == 'LSQUARE':
+            res, index = self.parse_array_type(index, in_type)
+            return self.parse_type_cont(index, res)
+        return in_type, index
 
     def parse_type(self, index):
         tp = self.peek_tok(index)
@@ -1008,62 +1007,41 @@ class Parser:
         elif tp == 'BOOL':
             return self.parse_booltype(index)
         elif tp == 'VARIABLE':
-            var, index = self.parse_variable(index)
-            if type(var) is not ArrayType:
-                var = VarType(var)
-            if type(var) is ArrayType:
-                var.type = VarType(var.type)
-            return var, index
+            return self.parse_variabletype(index)
+        # { <type> , ... }  --> Tuple type
         elif tp == 'LCURLY':
-            _, index = self.expect_tok(index, 'LCURLY')
-            if self.peek_tok(index) == 'RCURLY':
-                _, index = self.expect_tok(index, 'RCURLY')
-                if self.peek_tok(index) == 'LSQUARE':
-                    _, index = self.expect_tok(index, 'LSQUARE')
-                    return self.parse_array_type_seq(TupleType([]), index, 1)
-                return TupleType([]), index
-            types, index = self.parse_tuple_type_seq([], index)
-            ret = TupleType(types)
-            if self.peek_tok(index) == 'LSQUARE':
-                _, index = self.expect_tok(index, 'LSQUARE')
-                return self.parse_array_type_seq(ret, index, 1)
-            return ret, index
+            return self.parse_tuple_type(index)
         else:
-            ret = 'Could not find a type at ' + str(index)
+            ret = 'Could not find a type at ' + str(index) + ' got ' + tp
             raise ParserException(ret)
 
-    def parse_lvalue_cont(self, vals : [], index : int):
+    def parse_lvalue_tuple_seq(self, index, vals):
+        val, index = self.parse_lvalue(index)
+        vals.append(val)
+
         if self.peek_tok(index) == 'COMMA':
             _, index = self.expect_tok(index, 'COMMA')
-            if self.peek_tok(index) == 'RCURLY':
-                raise ParserException('No hanging commas on your Tuples at: ' + str(index))
+            return self.parse_lvalue_tuple_seq(index, vals)
         if self.peek_tok(index) == 'RCURLY':
             _, index = self.expect_tok(index, 'RCURLY')
             return vals, index
-        else:
-            lval, index = self.parse_lvalue(index)
-            vals.append(lval)
-            return self.parse_lvalue_cont(vals, index)
+
+    def parse_lvaluetuple(self, index):
+        _, index = self.expect_tok(index, 'LCURLY')
+        if self.peek_tok(index) == 'RCURLY':
+            _, index = self.expect_tok(index, 'RCURLY')
+            return TupleLValue([]), index
+
+        vals, index = self.parse_lvalue_tuple_seq(index, [])
+        return TupleLValue(vals), index
 
     def parse_lvalue(self, index):
-        t = self.peek_tok(index)
-        if t == 'VARIABLE':
-            val, index = self.parse_argument(index)
-            ret = ArgLValue(val)
-            return ret, index
-        elif t == 'LCURLY':
-            _, index = self.expect_tok(index, 'LCURLY')
-            vals, index = self.parse_lvalue_cont([], index)
-            return TupleLValue(vals), index
+        if self.peek_tok(index) == 'LCURLY':
+            return self.parse_lvaluetuple(index)
+        arg, index = self.parse_argument(index)
+        lvalue = ArgLValue(arg)
+        return lvalue, index
 
-
-
-
-
-
-
-
-
-
-
-
+    def parse_variable(self, index):
+        var, index = self.expect_tok(index, 'VARIABLE')
+        return Variable(var), index
