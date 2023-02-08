@@ -749,6 +749,7 @@ class Parser:
         _, index = self.expect_tok(index, 'COLON')
         typ, index = self.parse_type(index)
         _, index = self.expect_tok(index, 'LCURLY')
+        _, index = self.expect_tok(index, 'NEWLINE')
         stmts, index = self.parse_stmt_list(index)
 
         return FnCmd(var, bnds, typ, stmts), index
