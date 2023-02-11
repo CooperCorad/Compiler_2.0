@@ -1,28 +1,12 @@
-import mylexer
-
-# cmd  : read image <string> to <argument>
-#      | write image <expr> to <string>
-#      | type <variable> = <type>
-#      | let <lvalue> = <expr>
-#      | assert <expr> , <string>
-#      | print <string>
-#      | show <expr>
-
-# type : int
-#      | bool
-#      | float
-#      | <variable>
-
-# expr : <integer>
-#      | <float>
-#      | true
-#      | false
-#      | <variable>
-
-# argument : <variable>
-
-# lvalue : <argument>
 import math
+
+precedence = [['[', '{'],
+              ['!', '-'],       # negation minus
+              ['*', '/', '%'],
+              ['+', '-'],       # subtract minus
+              ['<', '<=', '==', '!=', '>=', '>'],
+              ['&&', '!!'],
+              'array', 'sum', 'if']
 
 
 class ParserException(Exception):
@@ -200,6 +184,83 @@ class CallExpr(Expr):
         ret = '(CallExpr ' + self.variable.to_string() + ' '
         for exp in self.exprs:
             ret += exp.to_string() + ' '
+        ret = ret[:-1] + ')'
+        return ret
+
+
+class UnopExpr(Expr):
+    op : str
+    lexpr : Expr
+    rexpr : Expr
+
+    def __init__(self, _op : str, _lexpr : Expr, _rexpr : Expr):
+        self.op = _op
+        self.lexpr = _lexpr
+        self.rexpr = _rexpr
+
+    def to_string(self):
+        ret = '(UnopExpr ' + self.lexpr.to_string() + ' ' + op + ' ' +  self.rexpr.to_string() + ')'
+        return ret
+
+
+class BinopExpr(Expr):
+    op: str
+    lexpr: Expr
+    rexpr: Expr
+
+    def __init__(self, _op: str, _lexpr: Expr, _rexpr: Expr):
+        self.op = _op
+        self.lexpr = _lexpr
+        self.rexpr = _rexpr
+
+    def to_string(self):
+        ret = '(BinopExpr ' + self.lexpr.to_string() + ' ' + self.op + ' ' + self.rexpr.to_string() + ')'
+        return ret
+
+
+class IfExpr(Expr):
+    ifexp : Expr
+    thenexp : Expr
+    elseexp: Expr
+
+    def __init__(self, _ifexp : Expr, _thenexp : Expr, _elseexp : Expr):
+        self.ifexp = _ifexp
+        self.thenexp = _thenexp
+        self.elseexp = _elseexp
+
+    def to_string(self):
+        ret = '(IfExpr ' + self.ifexp.to_string() + ' ' + self.thenexp.to_string() + ' ' + self.elseexp.to_string() + ')'
+        return ret
+
+
+class ArrayLoopExpr(Expr):
+    pairs : [(Variable, Expr)]
+    expr : Expr
+
+    def __init__(self, _pairs : [(Variable, Expr)], _expr : Expr):
+        self.pairs = _pairs
+        self.expr = _expr
+
+    def to_string(self):
+        ret = '(ArrayLoopExpr '
+        for pair in self.pairs:
+            ret += pair[0].to_string() + ' ' + pair[1].to_string() + ' '
+        ret = ret[:-1] + ')'
+        return ret
+
+
+class SumLoopExpr(Expr):
+    pairs : [(Variable, Expr)]
+    expr : Expr
+
+    def __init__(self, _pairs : [(Variable, Expr)], _expr : Expr):
+        self.pairs = _pairs
+        self.expr = _expr
+
+    def to_string(self):
+        ret = '(SumLoopExpr '
+        for pair in self.pairs:
+            ret += pair[0].to_string() + ' ' + pair[1].to_string() + ' '
         ret = ret[:-1] + ')'
         return ret
 
@@ -514,13 +575,13 @@ class TupleBinding(Binding):
         ret = ret[:-1] + ')'
         return ret
 
+
 class Parser:
     tokens = []
     program = []
 
     def __init__(self, _tokens):
         self.tokens = _tokens
-
 
     def peek_tok(self, index):
         return self.tokens[index].t
@@ -781,6 +842,7 @@ class Parser:
         vaarg = VarArg(var)
         return vaarg, index
 
+
     def parse_intexpr(self, index):
         num, index = self.expect_tok(index, 'INTVAL')
         return self.parse_expr_cont(index, IntExpr(num))
@@ -894,13 +956,37 @@ class Parser:
         _, index = self.expect_tok(index, 'RPAREN')
         return self.parse_expr_cont(index, expr)
 
+    # <expr> [*,/,%] <expr>
+    def parse_expr_lvl4(self, index,):
+        retexp, index = self.parse_expr(index)
+        return retexp, index
+
+    def parse_expr_lvl3_cont(self, index, expr):
+        if self.peek_tok(index) == 'OP':
+            op, index = self.expect_tok(index, 'OP')
+            if op in precedence[3]:
+                expr2, index = self.parse_expr_lvl4(index)
+                finalexpr = BinopExpr(op, expr, expr2)
+                return self.parse_expr_lvl3_cont(index, finalexpr)
+        return expr, index
+
+    # <expr> [+,-] <expr> todo finish
+    def parse_expr_lvl3(self, index, expr):
+        return self.parse_expr_lvl3_cont(index, expr)
+
     def parse_expr_cont(self, index, expr):
         t = self.peek_tok(index)
+
+        if t == 'OP':
+            expr, index = self.parse_expr_lvl3(index, expr)
+            return self.parse_expr_cont(index, expr)
+
         # <variable> ( <expr> , ... ) --> Call Expr
         if t == 'LPAREN' and type(expr) is VariableExpr:
             expr = expr.variable
             call, index = self.parse_callexpr(index, expr)
             return self.parse_expr_cont(index, call)
+        # TODO move below to parse_expr_lvl6
         # <expr> { <integer> }  --> Tuple Indexer
         elif t == 'LCURLY':
             tie, index = self.parse_tupleindexexpr(index, expr)

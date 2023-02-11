@@ -5,10 +5,10 @@ import myparser
 
 def main():
 
-    flag = sys.argv[1]
-    file_spec = sys.argv[2]
-    # flag = '-p'
-    # file_spec = 'test.jpl'
+    # flag = sys.argv[1]
+    # file_spec = sys.argv[2]
+    flag = '-p'
+    file_spec = 'test.jpl'
 
 
     if flag[0] != '-':
