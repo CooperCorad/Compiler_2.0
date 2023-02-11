@@ -1,579 +1,4 @@
-import math
-
-precedence = [['[', '{'],
-              ['!', '-'],       # negation minus
-              ['*', '/', '%'],
-              ['+', '-'],       # subtract minus
-              ['<', '<=', '==', '!=', '>=', '>'],
-              ['&&', '!!'],
-              'array', 'sum', 'if']
-
-
-class ParserException(Exception):
-    def __init__(self, _message):
-        self.message = _message
-        super().__init__(self.message)
-
-
-class ASTNode:
-    def to_string(self):
-        return ''
-
-
-class Variable(ASTNode):
-    variable: str
-
-    def __init__(self, _variable):
-        self.variable = _variable
-
-    def to_string(self):
-        return self.variable
-
-
-class Argument(ASTNode):
-    pass
-
-
-class VarArg(Argument):
-    variable: Variable
-
-    def __init__(self, _variable: Variable):
-        self.variable = _variable
-
-    def to_string(self):
-        ret = '(VarArgument ' + self.variable.to_string() + ')'
-        return ret
-
-
-class ArgLValue(Argument):
-
-    def __init__(self, _variable):
-        self.variable = _variable
-
-    def to_string(self):
-        ret = '(ArgLValue ' + self.variable.to_string() + ')'
-        return ret
-
-
-class TupleLValue(Argument):
-    variables: []
-
-    def __init__(self, _variables: []):
-        self.variables = _variables
-
-    def to_string(self):
-        ret = '(TupleLValue '
-        for variables in self.variables:
-            ret += variables.to_string() + ' '
-        ret = ret[:-1] + ')'
-        return ret
-
-
-class ArrayArgument(Argument):
-    var : Variable
-    arguments : []
-
-    def __init__(self, _var : Variable, _arguments : []):
-        self.var = _var
-        self.arguments = _arguments
-
-    def to_string(self):
-        ret = '(ArrayArgument ' + self.var.to_string() + ' '
-        for arg in self.arguments:
-            ret += arg.to_string() + ' '
-        ret = ret[:-1] + ')'
-        return ret
-
-# expr : <integer>
-#      | <float>
-#      | true
-#      | false
-#      | <variable>
-class Expr(ASTNode):
-    pass
-
-
-class IntExpr(Expr):
-    intVal: int
-
-    def __init__(self, _intVal: str):
-        self.intVal = int(_intVal)
-        if self.intVal < -pow(2, 63) or self.intVal > ((pow(2, 63)) - 1):
-            raise ParserException("You cannot have an int beyond the ranges -2^63 <-> 2^63 - 1")
-
-    def to_string(self):
-        ret = '(IntExpr ' + str(self.intVal) + ')'
-        return ret
-
-
-class FloatExpr(Expr):
-    floatVal: float
-
-    def __init__(self, _floatVal: str):
-        self.floatVal = float(_floatVal)
-        if math.isnan(self.floatVal) or math.isinf(self.floatVal):
-            raise ParserException("You cannot have an infinite or NaN float (likely a divide by Zero issue!")
-
-    def to_string(self):
-        ret = '(FloatExpr ' + str(int(self.floatVal)) + ')'
-        return ret
-
-
-class TrueExpr(Expr):
-    def to_string(self):
-        ret = '(TrueExpr)'
-        return ret
-
-
-class FalseExpr(Expr):
-    def to_string(self):
-        ret = '(FalseExpr)'
-        return ret
-
-
-class VariableExpr(Expr):
-    variable: Variable
-
-    def __init__(self, _variable: Variable):
-        self.variable = _variable
-
-    def to_string(self):
-        ret = '(VarExpr ' + self.variable.to_string() + ')'
-        return ret
-
-
-class TupleIndexExpr(Expr):
-    index : int
-    varxpr : Expr
-
-    def __init__(self, _index : int, _varxpr : Expr):
-        self.index = _index
-        self.varxpr = _varxpr
-
-    def to_string(self):
-        ret = '(TupleIndexExpr ' + self.varxpr.to_string() + ' ' +str(self.index) + ')'
-        return ret
-
-
-class ArrayIndexExpr(Expr):
-    expr : Expr
-    exprs : []
-
-    def __init__(self, _expr : Expr, _exprs : []):
-        self.expr = _expr
-        self.exprs = _exprs
-
-    def to_string(self):
-        ret = '(ArrayIndexExpr '
-        if self.expr is not None:
-            ret += self.expr.to_string() + ' '
-        for exp in self.exprs:
-            ret += exp.to_string() + ' '
-        ret = ret[:-1] + ')'
-        return ret
-
-
-class CallExpr(Expr):
-    exprs : []
-
-    def __init__(self, _variable, _vals : []):
-        self.variable = _variable
-        self.exprs = _vals
-
-    def to_string(self):
-        ret = '(CallExpr ' + self.variable.to_string() + ' '
-        for exp in self.exprs:
-            ret += exp.to_string() + ' '
-        ret = ret[:-1] + ')'
-        return ret
-
-
-class UnopExpr(Expr):
-    op : str
-    lexpr : Expr
-    rexpr : Expr
-
-    def __init__(self, _op : str, _lexpr : Expr, _rexpr : Expr):
-        self.op = _op
-        self.lexpr = _lexpr
-        self.rexpr = _rexpr
-
-    def to_string(self):
-        ret = '(UnopExpr ' + self.lexpr.to_string() + ' ' + op + ' ' +  self.rexpr.to_string() + ')'
-        return ret
-
-
-class BinopExpr(Expr):
-    op: str
-    lexpr: Expr
-    rexpr: Expr
-
-    def __init__(self, _op: str, _lexpr: Expr, _rexpr: Expr):
-        self.op = _op
-        self.lexpr = _lexpr
-        self.rexpr = _rexpr
-
-    def to_string(self):
-        ret = '(BinopExpr ' + self.lexpr.to_string() + ' ' + self.op + ' ' + self.rexpr.to_string() + ')'
-        return ret
-
-
-class IfExpr(Expr):
-    ifexp : Expr
-    thenexp : Expr
-    elseexp: Expr
-
-    def __init__(self, _ifexp : Expr, _thenexp : Expr, _elseexp : Expr):
-        self.ifexp = _ifexp
-        self.thenexp = _thenexp
-        self.elseexp = _elseexp
-
-    def to_string(self):
-        ret = '(IfExpr ' + self.ifexp.to_string() + ' ' + self.thenexp.to_string() + ' ' + self.elseexp.to_string() + ')'
-        return ret
-
-
-class ArrayLoopExpr(Expr):
-    pairs : [(Variable, Expr)]
-    expr : Expr
-
-    def __init__(self, _pairs : [(Variable, Expr)], _expr : Expr):
-        self.pairs = _pairs
-        self.expr = _expr
-
-    def to_string(self):
-        ret = '(ArrayLoopExpr '
-        for pair in self.pairs:
-            ret += pair[0].to_string() + ' ' + pair[1].to_string() + ' '
-        ret = ret[:-1] + ')'
-        return ret
-
-
-class SumLoopExpr(Expr):
-    pairs : [(Variable, Expr)]
-    expr : Expr
-
-    def __init__(self, _pairs : [(Variable, Expr)], _expr : Expr):
-        self.pairs = _pairs
-        self.expr = _expr
-
-    def to_string(self):
-        ret = '(SumLoopExpr '
-        for pair in self.pairs:
-            ret += pair[0].to_string() + ' ' + pair[1].to_string() + ' '
-        ret = ret[:-1] + ')'
-        return ret
-
-
-class Type(ASTNode):
-    def __init__(self):
-        pass
-
-    def to_string(self):
-        return ''
-
-
-class IntType(Type):
-    def __init__(self):
-        pass
-
-    def to_string(self):
-        ret = '(IntType)'
-        return ret
-
-
-class BoolType(Type):
-    def __init__(self):
-        pass
-
-    def to_string(self):
-        ret = '(BoolType)'
-        return ret
-
-
-class FloatType(Type):
-    def __init__(self):
-        pass
-
-    def to_string(self):
-        ret = '(FloatType)'
-        return ret
-
-
-class VarType(Type):
-    variable : Variable
-
-    def __init__(self, _variable: Variable):
-        self.variable = _variable
-
-    def to_string(self):
-        ret = '(VarType ' + self.variable.to_string() + ')'
-        return ret
-
-
-class TupleType(Type):
-    types = []
-
-    def __init__(self, _types : []):
-        self.types = _types
-
-    def to_string(self):
-        ret = '(TupleType '
-        for typ in self.types:
-            ret += typ.to_string() + ' '
-        ret = ret[:-1] + ')'
-        return ret
-
-
-class ArrayType(Type):
-    type : Type
-    count : int
-
-    def __init__(self, _type : Type, _count : int):
-        self.type = _type
-        self.count = _count
-
-    def to_string(self):
-        ret = '(ArrayType ' + self.type.to_string() + ' ' + str(self.count) + ')'
-        return ret
-
-
-class TupleLiteralExpr(Expr):
-    types : []
-
-    def __init__(self, _types : []):
-        self.types = _types
-
-    def to_string(self):
-        ret = '(TupleLiteralExpr '
-        for typ in self.types:
-            ret += typ.to_string() + ' '
-        ret = ret[:-1] + ')'
-        return ret
-
-class ArrayLiteralExpr(Expr):
-    types : []
-
-    def __init__(self, _types : []):
-        self.types = _types
-
-    def to_string(self):
-        ret = '(ArrayLiteralExpr '
-        for typ in self.types:
-            ret += typ.to_string() + ' '
-        ret = ret[:-1] + ')'
-        return ret
-
-
-# cmd  : time <cmd>
-#      | fn <variable> ( <binding> , ... ) : <type> { ;
-#            <stmt> ; ... ;
-#      }
-class Cmd(ASTNode):
-    pass
-
-
-class ReadCmd(Cmd):
-    filename: str
-    vararg: VarArg
-
-    def __init__(self, _filename: str, _vararg: VarArg):
-        self.filename = _filename
-        self.vararg = _vararg
-
-    def to_string(self):
-        ret = '(ReadCmd ' + self.filename + ' '
-        ret += self.vararg.to_string() + ')'
-        return ret
-
-
-class WriteCmd(Cmd):
-    expr: Expr
-    filename: str
-
-    def __init__(self, _expr: Expr, _filename: str):
-        self.expr = _expr
-        self.filename = _filename
-
-    def to_string(self):
-        ret = '(WriteCmd ' + self.expr.to_string() + ' ' + self.filename + ')'
-        return ret
-
-
-class TypeCmd(Cmd):
-    variable: Variable
-
-    def __init__(self, _variable: Variable, _typeval):
-        self.variable = _variable
-        self.typeval = _typeval
-
-    def to_string(self):
-        self.typeval.to_string()
-        ret = '(TypeCmd ' + self.variable.to_string() + ' ' + self.typeval.to_string() + ')'
-        return ret
-
-
-class LetCmd(Cmd):
-    lvalue: ArgLValue
-    expr: Expr
-
-    def __init__(self, _lvalue: ArgLValue, _expr: Expr):
-        self.lvalue = _lvalue
-        self.expr = _expr
-
-    def to_string(self):
-        ret = '(LetCmd ' + self.lvalue.to_string() + ' ' + self.expr.to_string() + ')'
-        return ret
-
-
-class AssertCmd(Cmd):
-    expr: Expr
-    string: str
-
-    def __init__(self, _expr: Expr, _string: str):
-        self.expr = _expr
-        self.string = _string
-
-    def to_string(self):
-        ret = '(AssertCmd ' + self.expr.to_string() + ' ' + self.string + ')'
-        return ret
-
-
-class PrintCmd(Cmd):
-    string: str
-
-    def __init__(self, _string: str):
-        self.string = _string
-
-    def to_string(self):
-        ret = '(PrintCmd ' + self.string + ')'
-        return ret
-
-
-class ShowCmd(Cmd):
-    expr: Expr
-
-    def __init__(self, _expr: Expr):
-        self.expr = _expr
-
-    def to_string(self):
-        ret = '(ShowCmd ' + self.expr.to_string() + ')'
-        return ret
-
-
-class TimeCmd(Cmd):
-    cmd: Cmd
-
-    def __init__(self, _cmd : Cmd):
-        self.cmd = _cmd
-
-    def to_string(self):
-        ret = '(TimeCmd ' + self.cmd.to_string() + ')'
-        return ret
-
-
-# fn <variable> ( <binding> , ... ) : <type> { ;
-#            <stmt> ; ... ;
-#        }
-class FnCmd(Cmd):
-    variable : Variable
-    bindings : []
-    typ : Type
-    stmts : []
-
-    def __init__(self, _variable : Variable, _bindings : [], _typ : Type, _stmts : []):
-        self.variable = _variable
-        self.bindings = _bindings
-        self.typ = _typ
-        self.stmts = _stmts
-
-    #TODO ???
-    def to_string(self):
-        ret = '(FnCmd ' + self.variable.to_string() + ' '
-        ret += '('
-        for bnd in self.bindings:
-            ret += bnd.to_string() + ' '
-        if len(self.bindings) == 0:
-            ret += ' '
-        ret = ret[:-1] + ') ' + self.typ.to_string() + ' '
-        for stmt in self.stmts:
-            ret += stmt.to_string() + ' '
-        ret = ret[:-1] + ')'
-        return ret
-
-
-
-class Stmt(ASTNode):
-    pass
-
-
-# let <lvalue> = <expr>
-class LetStmt(Stmt):
-    lval : ArgLValue
-    expr : Expr
-
-    def __init__(self, _lval : ArgLValue, _expr : Expr):
-        self.lval = _lval
-        self.expr = _expr
-
-    def to_string(self):
-        ret = '(LetStmt ' + self.lval.to_string() + ' ' + self.expr.to_string() + ')'
-        return ret
-
-
-class AssertStmt(Stmt):
-    expr : Expr
-    string : str
-
-    def __init__(self, _expr : Expr, _string : str):
-        self.expr = _expr
-        self.string = _string
-
-    def to_string(self):
-        ret = '(AssertStmt ' + self.expr.to_string() + ' ' + self.string + ')'
-        return ret
-
-class ReturnStmt(Stmt):
-    expr : Expr
-
-    def __init__(self, _expr : Expr):
-        self.expr = _expr
-
-    def to_string(self):
-        ret = '(ReturnStmt ' + self.expr.to_string() + ')'
-        return ret
-
-class Binding(ASTNode):
-    pass
-
-
-# <argument> : <type>
-class VarBinding(Binding):
-    argument : Argument
-    type : Type
-
-    def __init__(self, _argument : Argument, _type : Type):
-        self.argument = _argument
-        self.type = _type
-
-    def to_string(self):
-        ret = '(VarBinding ' + self.argument.to_string() + ' ' + self.type.to_string() + ')'
-        return ret
-
-
-# { <binding> , ... }
-class TupleBinding(Binding):
-    bindings : []
-
-    def __init__(self, _bindings : []):
-        self.bindings = _bindings
-
-    def to_string(self):
-        ret = '(TupleBinding '
-        for bnd in self.bindings:
-            ret += bnd.to_string() + ' '
-        ret = ret[:-1] + ')'
-        return ret
+from parserheader import *
 
 
 class Parser:
@@ -654,7 +79,7 @@ class Parser:
     def parse_writecmd(self, index):
         _, index = self.expect_tok(index, 'WRITE')
         _, index = self.expect_tok(index, 'IMAGE')
-        expr, index = self.parse_expr(index)
+        expr, index = self.parse_expr_lvl0(index)
         _, index = self.expect_tok(index, 'TO')
         filename, index = self.expect_tok(index, 'STRING')
         ret = WriteCmd(expr, filename)
@@ -674,14 +99,14 @@ class Parser:
         _, index = self.expect_tok(index, 'LET')
         lval, index = self.parse_lvalue(index)
         _, index = self.expect_tok(index, 'EQUALS')
-        expr, index = self.parse_expr(index)
+        expr, index = self.parse_expr_lvl0(index)
         ret = LetCmd(lval, expr)
         return ret, index
 
     # assert <expr> , <string>
     def parse_assertcmd(self, index):
         _, index = self.expect_tok(index, 'ASSERT')
-        expr, index = self.parse_expr(index)
+        expr, index = self.parse_expr_lvl0(index)
         _, index = self.expect_tok(index, 'COMMA')
         string, index = self.expect_tok(index, 'STRING')
         ret = AssertCmd(expr, string)
@@ -697,7 +122,7 @@ class Parser:
     # show <expr>
     def parse_showcmd(self, index):
         _, index = self.expect_tok(index, 'SHOW')
-        expr, index = self.parse_expr(index)
+        expr, index = self.parse_expr_lvl0(index)
         ret = ShowCmd(expr)
         return ret, index
 
@@ -757,19 +182,19 @@ class Parser:
         _, index = self.expect_tok(index, 'LET')
         lval, index = self.parse_lvalue(index)
         _, index = self.expect_tok(index, 'EQUALS')
-        expr, index = self.parse_expr(index)
+        expr, index = self.parse_expr_lvl0(index)
         return LetStmt(lval, expr), index
 
     def parse_assertstmt(self, index):
         _, index = self.expect_tok(index, 'ASSERT')
-        expr, index = self.parse_expr(index)
+        expr, index = self.parse_expr_lvl0(index)
         _, index = self.expect_tok(index, 'COMMA')
         string, index = self.expect_tok(index, 'STRING')
         return AssertStmt(expr, string), index
 
     def parse_returnstmt(self, index):
         _, index = self.expect_tok(index, 'RETURN')
-        expr, index = self.parse_expr(index)
+        expr, index = self.parse_expr_lvl0(index)
         return ReturnStmt(expr), index
 
     def parse_stmt(self, index):
@@ -842,7 +267,6 @@ class Parser:
         vaarg = VarArg(var)
         return vaarg, index
 
-
     def parse_intexpr(self, index):
         num, index = self.expect_tok(index, 'INTVAL')
         return self.parse_expr_cont(index, IntExpr(num))
@@ -865,7 +289,7 @@ class Parser:
         return self.parse_expr_cont(index, FalseExpr())
 
     def parse_callexpr_seq(self, index, vals):
-        val, index = self.parse_expr(index)
+        val, index = self.parse_expr_lvl0(index)
         vals.append(val)
 
         if self.peek_tok(index) == 'COMMA':
@@ -885,7 +309,7 @@ class Parser:
             return CallExpr(var, exprs), index
 
     def parse_arrayindexexpr_seq(self, index, exprs : []):
-        val, index = self.parse_expr(index)
+        val, index = self.parse_expr_lvl0(index)
         exprs.append(val)
 
         if self.peek_tok(index) == 'COMMA':
@@ -911,7 +335,7 @@ class Parser:
         return TupleIndexExpr(int(num), expr), index
 
     def parse_tupleliteralexpr_seq(self, index, vals):
-        val, index = self.parse_expr(index)
+        val, index = self.parse_expr_lvl0(index)
         vals.append(val)
 
         if self.peek_tok(index) == 'COMMA':
@@ -931,7 +355,7 @@ class Parser:
             return self.parse_expr_cont(index, TupleLiteralExpr(exprs))
 
     def parse_arrayliteralexpr_seq(self, index, vals):
-        val, index = self.parse_expr(index)
+        val, index = self.parse_expr_lvl0(index)
         vals.append(val)
 
         if self.peek_tok(index) == 'COMMA':
@@ -952,50 +376,187 @@ class Parser:
 
     def parse_parenexpr(self, index):
         _, index = self.expect_tok(index, 'LPAREN')
-        expr, index = self.parse_expr(index)
+        expr, index = self.parse_expr_lvl0(index)
         _, index = self.expect_tok(index, 'RPAREN')
         return self.parse_expr_cont(index, expr)
 
+    def parse_expr_lvl6_cont(self, index, expr):
+        t = self.peek_tok(index)
+        if t == 'LCURLY':
+            expr, index =  self.parse_tupleindexexpr(index, expr)
+            return self.parse_expr_lvl6_cont(index, expr)
+        if t == 'LSQUARE':
+            expr, index = self.parse_arrayindexexpr(index, expr)
+            return self.parse_expr_lvl6_cont(index, expr)
+        return expr, index
+
+    def parse_expr_lvl6(self, index):
+        expr, index = self.parse_expr_literal(index)
+        return self.parse_expr_lvl6_cont(index, expr)
+
+    def parse_expr_lvl5(self, index):
+        if self.peek_tok(index) == 'OP':
+            op, mbindex = self.expect_tok(index, 'OP')
+            if op in precedence[5]:
+                index = mbindex
+                expr, index = self.parse_expr_lvl0(index)
+                finalexpr = UnopExpr(op, expr)
+                return finalexpr, index
+        return self.parse_expr_lvl6(index)
+
+    def parse_expr_lvl4_cont(self, index, expr):
+        if self.peek_tok(index) == 'OP':
+            op, mbindex = self.expect_tok(index, 'OP')
+            if op in precedence[4]:
+                index = mbindex
+                expr2, index = self.parse_expr_lvl5(index)
+                finalexpr = BinopExpr(op, expr, expr2)
+                return self.parse_expr_lvl4_cont(index, finalexpr)
+        return expr, index
+
     # <expr> [*,/,%] <expr>
-    def parse_expr_lvl4(self, index,):
-        retexp, index = self.parse_expr(index)
-        return retexp, index
+    def parse_expr_lvl4(self, index):
+        expr, index = self.parse_expr_lvl5(index)
+        return self.parse_expr_lvl4_cont(index, expr)
 
     def parse_expr_lvl3_cont(self, index, expr):
         if self.peek_tok(index) == 'OP':
-            op, index = self.expect_tok(index, 'OP')
+            op, mbindex = self.expect_tok(index, 'OP')
             if op in precedence[3]:
+                index = mbindex
                 expr2, index = self.parse_expr_lvl4(index)
                 finalexpr = BinopExpr(op, expr, expr2)
                 return self.parse_expr_lvl3_cont(index, finalexpr)
         return expr, index
 
     # <expr> [+,-] <expr> todo finish
-    def parse_expr_lvl3(self, index, expr):
-        return self.parse_expr_lvl3_cont(index, expr)
+    def parse_expr_lvl3(self, index):
+        nexpr, index = self.parse_expr_lvl4(index)
+        return self.parse_expr_lvl3_cont(index, nexpr)
 
-    def parse_expr_cont(self, index, expr):
-        t = self.peek_tok(index)
-
-        if t == 'OP':
-            expr, index = self.parse_expr_lvl3(index, expr)
-            return self.parse_expr_cont(index, expr)
-
-        # <variable> ( <expr> , ... ) --> Call Expr
-        if t == 'LPAREN' and type(expr) is VariableExpr:
-            expr = expr.variable
-            call, index = self.parse_callexpr(index, expr)
-            return self.parse_expr_cont(index, call)
-        # TODO move below to parse_expr_lvl6
-        # <expr> { <integer> }  --> Tuple Indexer
-        elif t == 'LCURLY':
-            tie, index = self.parse_tupleindexexpr(index, expr)
-            return self.parse_expr_cont(index, tie)
-        # <expr> [ <expr> , ... ] --> Array indexer
-        elif t == 'LSQUARE':
-            aie, index = self.parse_arrayindexexpr(index, expr)
-            return self.parse_expr_cont(index, aie)
+    def parse_expr_lvl2_cont(self, index, expr):
+        if self.peek_tok(index) == 'OP':
+            op, mbindex = self.expect_tok(index, 'OP')
+            if op in precedence[2]:
+                index = mbindex
+                expr2, index = self.parse_expr_lvl3(index)
+                finalexpr = BinopExpr(op, expr, expr2)
+                return self.parse_expr_lvl2_cont(index, finalexpr)
         return expr, index
+
+    def parse_expr_lvl2(self, index):
+        expr, index = self.parse_expr_lvl3(index)
+        return self.parse_expr_lvl2_cont(index, expr)
+
+    def parse_expr_lvl1_cont(self, index, expr):
+        if self.peek_tok(index) == 'OP':
+            op, mbindex = self.expect_tok(index, 'OP')
+            if op in precedence[1]:
+                index = mbindex
+                expr2, index = self.parse_expr_lvl2(index)
+                finalexpr = BinopExpr(op, expr, expr2)
+                return self.parse_expr_lvl1_cont(index, finalexpr)
+        return expr, index
+
+    def parse_expr_lvl1(self, index):
+        expr, index = self.parse_expr_lvl2(index)
+        return self.parse_expr_lvl1_cont(index, expr)
+
+    def parse_loop_binds_seq(self, index, vals : []):
+        var, index = self.parse_variable(index)
+        _, index = self.expect_tok(index, 'COLON')
+        expr, index = self.parse_expr_lvl0(index)
+        vals.append((var, expr))
+
+        if self.peek_tok(index) == 'RSQUARE':
+            _, index = self.expect_tok(index, 'RSQUARE')
+            return vals, index
+        else:
+            _, index = self.expect_tok(index, 'COMMA')
+            return self.parse_loop_binds_seq(index, vals)
+
+    def parse_loop_binds(self, index):
+        _, index = self.expect_tok(index, 'LSQUARE')
+        if self.peek_tok(index) == 'RSQUARE':
+            _, index = self.expect_tok(index, 'RSQUARE')
+            return []
+        else:
+            return self.parse_loop_binds_seq(index, [])
+
+    # TODO: fix prefix / unop expr shit
+    def parse_expr_lvl0(self, index):
+        t = self.peek_tok(index)
+        if t == 'ARRAY':
+            _, index = self.expect_tok(index, 'ARRAY')
+            binds, index = self.parse_loop_binds(index)
+            expr, index = self.parse_expr_lvl0(index)
+            finalexpr = ArrayLoopExpr(binds, expr)
+            return finalexpr, index
+
+        elif t == 'SUM':
+            _, index = self.expect_tok(index, 'SUM')
+            binds, index = self.parse_loop_binds(index)
+            expr, index = self.parse_expr_lvl0(index)
+            finalexpr = SumLoopExpr(binds, expr)
+            return finalexpr, index
+        elif t == 'IF':
+            _, index = self.expect_tok(index, 'IF')
+            ifexp, index = self.parse_expr_lvl0(index)
+            _, index = self.expect_tok(index, 'THEN')
+            thenexp, index = self.parse_expr_lvl0(index)
+            _, index = self.expect_tok(index, 'ELSE')
+            elsexp, index = self.parse_expr_lvl0(index)
+            finalexpr = IfExpr(ifexp, thenexp, elsexp)
+            return finalexpr, index
+
+        return self.parse_expr_lvl1(index)
+
+    def parse_expr_literal(self, index):
+        t = self.peek_tok(index)
+        if t == 'INTVAL':
+            num, index = self.expect_tok(index, 'INTVAL')
+            return IntExpr(num), index
+        elif t == 'FLOATVAL':
+            num, index = self.expect_tok(index, 'FLOATVAL')
+            return FloatExpr(num), index
+        elif t == 'VARIABLE':
+            var, index = self.parse_variable(index)
+            if self.peek_tok(index) == 'LPAREN':
+                return self.parse_callexpr(index, var)
+            return VariableExpr(var), index
+        elif t == 'TRUE':
+            _, index = self.expect_tok(index, 'TRUE')
+            return TrueExpr(), index
+        elif t == 'FALSE':
+            _, index = self.expect_tok(index, 'FALSE')
+            return FalseExpr(), index
+        # { <expr> , ... } --> Tuple Literal
+        elif t == 'LCURLY':
+            _, index = self.expect_tok(index, 'LCURLY')
+            if self.peek_tok(index) == 'RCURLY':
+                _, index = self.expect_tok(index, 'RCURLY')
+                return TupleLiteralExpr([]), index
+            else:
+                exprs, index = self.parse_tupleliteralexpr_seq(index, [])
+                return TupleLiteralExpr(exprs), index
+        # [ <expr> , ... ] --> Array Literal
+        elif t == 'LSQUARE':
+            _, index = self.expect_tok(index, 'LSQUARE')
+            if self.peek_tok(index) == 'RSQUARE':
+                _, index = self.expect_tok(index, 'RSQUARE')
+                return ArrayLiteralExpr([]), index
+            else:
+                exprs, index = self.parse_arrayliteralexpr_seq(index, [])
+                return ArrayLiteralExpr(exprs), index
+        # ( <expr> ) --> Parenthasized expr
+        elif t == 'LPAREN':
+            _, index = self.expect_tok(index, 'LPAREN')
+            expr, index = self.parse_expr_lvl0(index)   # TODO move this to
+            _, index = self.expect_tok(index, 'RPAREN')
+            return expr, index
+        else:
+            ret = 'Unable to find a literal Expression at ' + str(index)
+            raise ParserException(ret)
 
     def parse_expr(self, index):
         t = self.peek_tok(index)

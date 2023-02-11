@@ -1,1 +1,1 @@
-let x = 1 + 2 + y
+show -array[x:1] - y
