@@ -267,27 +267,6 @@ class Parser:
         vaarg = VarArg(var)
         return vaarg, index
 
-    def parse_intexpr(self, index):
-        num, index = self.expect_tok(index, 'INTVAL')
-        return self.parse_expr_cont(index, IntExpr(num))
-
-    def parse_floatexpr(self, index):
-        num, index = self.expect_tok(index, 'FLOATVAL')
-        return self.parse_expr_cont(index, FloatExpr(num))
-
-    def parse_variableexpr(self, index):
-        var, index = self.parse_variable(index)
-        varexp = VariableExpr(var)
-        return self.parse_expr_cont(index, varexp)
-
-    def parse_trueexpr(self, index):
-        expr, index = self.expect_tok(index, 'TRUE')
-        return self.parse_expr_cont(index, TrueExpr())
-
-    def parse_falseexper(self, index):
-        expr, index = self.expect_tok(index, 'FALSE')
-        return self.parse_expr_cont(index, FalseExpr())
-
     def parse_callexpr_seq(self, index, vals):
         val, index = self.parse_expr_lvl0(index)
         vals.append(val)
@@ -345,15 +324,6 @@ class Parser:
             _, index = self.expect_tok(index, 'RCURLY')
             return vals, index
 
-    def parse_tupleliteralexpr(self, index):
-        _, index = self.expect_tok(index, 'LCURLY')
-        if self.peek_tok(index) == 'RCURLY':
-            _, index = self.expect_tok(index, 'RCURLY')
-            return self.parse_expr_cont(index, TupleLiteralExpr([]))
-        else:
-            exprs, index = self.parse_tupleliteralexpr_seq(index, [])
-            return self.parse_expr_cont(index, TupleLiteralExpr(exprs))
-
     def parse_arrayliteralexpr_seq(self, index, vals):
         val, index = self.parse_expr_lvl0(index)
         vals.append(val)
@@ -365,25 +335,10 @@ class Parser:
             _, index = self.expect_tok(index, 'RSQUARE')
             return vals, index
 
-    def parse_arrayliteralexpr(self, index):
-        _, index = self.expect_tok(index, 'LSQUARE')
-        if self.peek_tok(index) == 'RSQUARE':
-            _, index = self.expect_tok(index, 'RSQUARE')
-            return self.parse_expr_cont(index, ArrayLiteralExpr([]))
-        else:
-            exprs, index = self.parse_arrayliteralexpr_seq(index, [])
-            return self.parse_expr_cont(index, ArrayLiteralExpr(exprs))
-
-    def parse_parenexpr(self, index):
-        _, index = self.expect_tok(index, 'LPAREN')
-        expr, index = self.parse_expr_lvl0(index)
-        _, index = self.expect_tok(index, 'RPAREN')
-        return self.parse_expr_cont(index, expr)
-
     def parse_expr_lvl6_cont(self, index, expr):
         t = self.peek_tok(index)
         if t == 'LCURLY':
-            expr, index =  self.parse_tupleindexexpr(index, expr)
+            expr, index = self.parse_tupleindexexpr(index, expr)
             return self.parse_expr_lvl6_cont(index, expr)
         if t == 'LSQUARE':
             expr, index = self.parse_arrayindexexpr(index, expr)
@@ -394,14 +349,24 @@ class Parser:
         expr, index = self.parse_expr_literal(index)
         return self.parse_expr_lvl6_cont(index, expr)
 
+    def parse_expr_lvl5_cont(self, index, expr):
+        if self.peek_tok(index) == 'OP' and type(expr) != UnopExpr:
+            op, mbindex = self.expect_tok(index, 'OP')
+            if op in precedence[5]:
+                index = mbindex
+                expr, index = self.parse_expr_lvl6(index)
+                finalexpr = UnopExpr(op, expr)
+                return self.parse_expr_lvl5_cont(index, finalexpr)
+        return expr, index
+
     def parse_expr_lvl5(self, index):
         if self.peek_tok(index) == 'OP':
             op, mbindex = self.expect_tok(index, 'OP')
             if op in precedence[5]:
                 index = mbindex
-                expr, index = self.parse_expr_lvl0(index)
+                expr, index = self.parse_expr_lvl5(index)
                 finalexpr = UnopExpr(op, expr)
-                return finalexpr, index
+                return self.parse_expr_lvl5_cont(index, finalexpr)
         return self.parse_expr_lvl6(index)
 
     def parse_expr_lvl4_cont(self, index, expr):
@@ -479,36 +444,11 @@ class Parser:
         _, index = self.expect_tok(index, 'LSQUARE')
         if self.peek_tok(index) == 'RSQUARE':
             _, index = self.expect_tok(index, 'RSQUARE')
-            return []
+            return [], index
         else:
             return self.parse_loop_binds_seq(index, [])
 
-    # TODO: fix prefix / unop expr shit
     def parse_expr_lvl0(self, index):
-        t = self.peek_tok(index)
-        if t == 'ARRAY':
-            _, index = self.expect_tok(index, 'ARRAY')
-            binds, index = self.parse_loop_binds(index)
-            expr, index = self.parse_expr_lvl0(index)
-            finalexpr = ArrayLoopExpr(binds, expr)
-            return finalexpr, index
-
-        elif t == 'SUM':
-            _, index = self.expect_tok(index, 'SUM')
-            binds, index = self.parse_loop_binds(index)
-            expr, index = self.parse_expr_lvl0(index)
-            finalexpr = SumLoopExpr(binds, expr)
-            return finalexpr, index
-        elif t == 'IF':
-            _, index = self.expect_tok(index, 'IF')
-            ifexp, index = self.parse_expr_lvl0(index)
-            _, index = self.expect_tok(index, 'THEN')
-            thenexp, index = self.parse_expr_lvl0(index)
-            _, index = self.expect_tok(index, 'ELSE')
-            elsexp, index = self.parse_expr_lvl0(index)
-            finalexpr = IfExpr(ifexp, thenexp, elsexp)
-            return finalexpr, index
-
         return self.parse_expr_lvl1(index)
 
     def parse_expr_literal(self, index):
@@ -554,33 +494,31 @@ class Parser:
             expr, index = self.parse_expr_lvl0(index)   # TODO move this to
             _, index = self.expect_tok(index, 'RPAREN')
             return expr, index
-        else:
-            ret = 'Unable to find a literal Expression at ' + str(index)
-            raise ParserException(ret)
+        # TODO unsure of this!
+        elif t == 'ARRAY':
+            _, index = self.expect_tok(index, 'ARRAY')
+            binds, index = self.parse_loop_binds(index)
+            expr, index = self.parse_expr_lvl0(index)
+            finalexpr = ArrayLoopExpr(binds, expr)
+            return finalexpr, index
 
-    def parse_expr(self, index):
-        t = self.peek_tok(index)
-        if t == 'INTVAL':
-            return self.parse_intexpr(index)
-        elif t == 'FLOATVAL':
-            return self.parse_floatexpr(index)
-        elif t == 'VARIABLE':
-            return self.parse_variableexpr(index)
-        elif t == 'TRUE':
-            return self.parse_trueexpr(index)
-        elif t == 'FALSE':
-            return self.parse_falseexper(index)
-        # { <expr> , ... } --> Tuple Literal
-        elif t == 'LCURLY':
-            return self.parse_tupleliteralexpr(index)
-        # [ <expr> , ... ] --> Array Literal
-        elif t == 'LSQUARE':
-            return self.parse_arrayliteralexpr(index)
-        # ( <expr> ) --> Parenthasized expr
-        elif t == 'LPAREN':
-            return self.parse_parenexpr(index)
+        elif t == 'SUM':
+            _, index = self.expect_tok(index, 'SUM')
+            binds, index = self.parse_loop_binds(index)
+            expr, index = self.parse_expr_lvl0(index)
+            finalexpr = SumLoopExpr(binds, expr)
+            return finalexpr, index
+        elif t == 'IF':
+            _, index = self.expect_tok(index, 'IF')
+            ifexp, index = self.parse_expr_lvl0(index)
+            _, index = self.expect_tok(index, 'THEN')
+            thenexp, index = self.parse_expr_lvl0(index)
+            _, index = self.expect_tok(index, 'ELSE')
+            elsexp, index = self.parse_expr_lvl0(index)
+            finalexpr = IfExpr(ifexp, thenexp, elsexp)
+            return finalexpr, index
         else:
-            ret = 'Unable to find an Expression at ' + str(index)
+            ret = 'Cannot find literal expression at ' + str(index)
             raise ParserException(ret)
 
     def parse_inttype(self, index):

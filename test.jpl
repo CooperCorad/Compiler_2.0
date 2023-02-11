@@ -1,1 +1,1 @@
-show -array[x:1] - y
+let x = f(a)
