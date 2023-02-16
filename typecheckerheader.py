@@ -9,15 +9,24 @@ class IntTy(Ty):
     def to_string(self):
         return '(IntType)'
 
+    def equals(self, otherty):
+        return type(otherty) is IntTy
+
 
 class FloatTy(Ty):
     def to_string(self):
         return '(FloatType)'
 
+    def equals(self, otherty):
+        return type(otherty) is FloatTy
+
 
 class BoolTy(Ty):
     def to_string(self):
         return '(BoolType)'
+
+    def equals(self, otherty):
+        return type(otherty) is BoolTy
 
 
 class TupleTy(Ty):
@@ -33,6 +42,15 @@ class TupleTy(Ty):
             ret += typs.to_string() + ' '
         return ret[:-1] + ')'
 
+    def equals(self, otherty):
+        if type(otherty) is not TupleTy or self.rank != otherty.rank:
+            return False
+        for i in range(len(self.tys)):
+            if not self.tys[i].equals(otherty.tys[i]):
+                return False
+        return True
+
+
 
 class ArrayTy(Ty):
     def __init__(self, _ty, _rank: int):
@@ -42,6 +60,12 @@ class ArrayTy(Ty):
     def to_string(self):
         ret = '(ArrayType ' + self.ty.to_string() + ' ' + str(self.rank) + ')'
         return ret
+
+    def equals(self, otherty):
+        if type(otherty) is not ArrayTy:
+            return False
+        return type(self.ty) is type(otherty.ty) and self.rank == otherty.rank
+
 
 class TypeCheckerException(Exception):
     def __init__(self, _message):

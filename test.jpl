@@ -1,2 +1,1 @@
-show (- {93.73{1}, (- 816)}{1}[(if (if (false || true) then true else (! false)) then ((13 - 680) + (- 381)) else (- 984))])
-
+show if true then {1,2} else {1, 2324}

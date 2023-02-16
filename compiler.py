@@ -5,11 +5,10 @@ import mytypechecker
 
 def main():
 
-    # flag = sys.argv[1]
-    # file_spec = sys.argv[2]
-    flag = '-t'
-    file_spec = 'test.jpl'
-
+    flag = sys.argv[1]
+    file_spec = sys.argv[2]
+    # flag = '-t'
+    # file_spec = 'test.jpl'
 
     if flag[0] != '-':
         temp = flag
@@ -25,7 +24,6 @@ def main():
 
     if flag == '-l':
         try:
-            # print(file)
             newlexer = mylexer.Lexer(file)
             newlexer.runner()
             for x in newlexer.tokens:
