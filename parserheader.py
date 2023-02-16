@@ -1,5 +1,7 @@
 import math
 
+from typecheckerheader import Ty
+
 precedence = [['array', 'sum', 'if'],
                 ['&&', '||'],
                 ['<', '<=', '==', '!=', '>=', '>'],
@@ -85,6 +87,7 @@ class ArrayArgument(Argument):
         ret = ret[:-1] + ')'
         return ret
 
+
 # expr : <integer>
 #      | <float>
 #      | true
@@ -96,6 +99,7 @@ class Expr(ASTNode):
 
 class IntExpr(Expr):
     intVal: int
+    ty = None
 
     def __init__(self, _intVal: str):
         self.intVal = int(_intVal)
@@ -103,12 +107,16 @@ class IntExpr(Expr):
             raise ParserException("You cannot have an int beyond the ranges -2^63 <-> 2^63 - 1")
 
     def to_string(self):
-        ret = '(IntExpr ' + str(self.intVal) + ')'
+        typestr = ''
+        if self.ty is not None:
+            typestr = self.ty.to_string() + ' '
+        ret = '(IntExpr ' + typestr + str(self.intVal) + ')'
         return ret
 
 
 class FloatExpr(Expr):
     floatVal: float
+    ty = None
 
     def __init__(self, _floatVal: str):
         self.floatVal = float(_floatVal)
@@ -116,56 +124,81 @@ class FloatExpr(Expr):
             raise ParserException("You cannot have an infinite or NaN float (likely a divide by Zero issue!")
 
     def to_string(self):
-        ret = '(FloatExpr ' + str(int(self.floatVal)) + ')'
+        typestr = ''
+        if self.ty is not None:
+            typestr = self.ty.to_string() + ' '
+        ret = '(FloatExpr ' + typestr + str(int(self.floatVal)) + ')'
         return ret
 
 
 class TrueExpr(Expr):
+    ty = None
+
     def to_string(self):
-        ret = '(TrueExpr)'
+        typestr = ''
+        if self.ty is not None:
+            typestr = ' ' + self.ty.to_string()
+        ret = '(TrueExpr' + typestr + ')'
         return ret
 
 
 class FalseExpr(Expr):
+    ty = None
+
     def to_string(self):
-        ret = '(FalseExpr)'
+        typestr = ''
+        if self.ty is not None:
+            typestr = ' ' + self.ty.to_string()
+        ret = '(FalseExpr' + typestr + ')'
         return ret
 
 
 class VariableExpr(Expr):
     variable: Variable
+    ty = None
 
     def __init__(self, _variable: Variable):
         self.variable = _variable
 
     def to_string(self):
-        ret = '(VarExpr ' + self.variable.to_string() + ')'
+        typestr = ''
+        if self.ty is not None:
+            typestr = ' ' + self.ty.to_string()
+        ret = '(VarExpr ' + typestr + self.variable.to_string() + ')'
         return ret
 
 
 class TupleIndexExpr(Expr):
     index : int
     varxpr : Expr
+    ty = None
 
     def __init__(self, _index : int, _varxpr : Expr):
         self.index = _index
         self.varxpr = _varxpr
 
     def to_string(self):
-        ret = '(TupleIndexExpr ' + self.varxpr.to_string() + ' ' +str(self.index) + ')'
+        typestr = ''
+        if self.ty is not None:
+            typestr = ' ' + self.ty.to_string()
+        ret = '(TupleIndexExpr ' + typestr + self.varxpr.to_string() + ' ' + str(self.index) + ')'
         return ret
 
 
 class ArrayIndexExpr(Expr):
     expr : Expr
     exprs : []
+    ty = None
 
     def __init__(self, _expr : Expr, _exprs : []):
         self.expr = _expr
         self.exprs = _exprs
 
     def to_string(self):
-        ret = '(ArrayIndexExpr '
+        typestr = ''
+        if self.ty is not None:
+            typestr = self.ty.to_string() + ' '
+        ret = '(ArrayIndexExpr ' + typestr
         if self.expr is not None:
             ret += self.expr.to_string() + ' '
         for exp in self.exprs:
@@ -176,13 +209,17 @@ class ArrayIndexExpr(Expr):
 
 class CallExpr(Expr):
     exprs : []
+    ty = None
 
     def __init__(self, _variable, _vals : []):
         self.variable = _variable
         self.exprs = _vals
 
     def to_string(self):
-        ret = '(CallExpr ' + self.variable.to_string() + ' '
+        typestr = ''
+        if self.ty is not None:
+            typestr = self.ty.to_string() + ' '
+        ret = '(CallExpr ' + typestr + self.variable.to_string() + ' '
         for exp in self.exprs:
             ret += exp.to_string() + ' '
         ret = ret[:-1] + ')'
@@ -192,13 +229,17 @@ class CallExpr(Expr):
 class UnopExpr(Expr):
     op : str
     expr : Expr
+    ty = None
 
     def __init__(self, _op : str, _expr : Expr):
         self.op = _op
         self.expr = _expr
 
     def to_string(self):
-        ret = '(UnopExpr ' + self.op + ' ' + self.expr.to_string() + ')'
+        typestr = ''
+        if self.ty is not None:
+            typestr = self.ty.to_string() + ' '
+        ret = '(UnopExpr ' + typestr + self.op + ' ' + self.expr.to_string() + ')'
         return ret
 
 
@@ -206,6 +247,7 @@ class BinopExpr(Expr):
     op: str
     lexpr: Expr
     rexpr: Expr
+    ty = None
 
     def __init__(self, _op: str, _lexpr: Expr, _rexpr: Expr):
         self.op = _op
@@ -213,7 +255,10 @@ class BinopExpr(Expr):
         self.rexpr = _rexpr
 
     def to_string(self):
-        ret = '(BinopExpr ' + self.lexpr.to_string() + ' ' + self.op + ' ' + self.rexpr.to_string() + ')'
+        typestr = ''
+        if self.ty is not None:
+            typestr = self.ty.to_string() + ' '
+        ret = '(BinopExpr ' + typestr + self.lexpr.to_string() + ' ' + self.op + ' ' + self.rexpr.to_string() + ')'
         return ret
 
 
@@ -221,6 +266,7 @@ class IfExpr(Expr):
     ifexp : Expr
     thenexp : Expr
     elseexp: Expr
+    ty = None
 
     def __init__(self, _ifexp : Expr, _thenexp : Expr, _elseexp : Expr):
         self.ifexp = _ifexp
@@ -228,20 +274,27 @@ class IfExpr(Expr):
         self.elseexp = _elseexp
 
     def to_string(self):
-        ret = '(IfExpr ' + self.ifexp.to_string() + ' ' + self.thenexp.to_string() + ' ' + self.elseexp.to_string() + ')'
+        typestr = ''
+        if self.ty is not None:
+            typestr = self.ty.to_string() + ' '
+        ret = '(IfExpr ' + typestr + self.ifexp.to_string() + ' ' + self.thenexp.to_string() + ' ' + self.elseexp.to_string() + ')'
         return ret
 
 
 class ArrayLoopExpr(Expr):
     pairs : [(Variable, Expr)]
     expr : Expr
+    ty = None
 
     def __init__(self, _pairs : [(Variable, Expr)], _expr : Expr):
         self.pairs = _pairs
         self.expr = _expr
 
     def to_string(self):
-        ret = '(ArrayLoopExpr '
+        typestr = ''
+        if self.ty is not None:
+            typestr = self.ty.to_string()
+        ret = '(ArrayLoopExpr ' + typestr
         for pair in self.pairs:
             ret += pair[0].to_string() + ' ' + pair[1].to_string() + ' '
         ret = ret[:-1] + ' ' + self.expr.to_string() + ')'
@@ -251,13 +304,17 @@ class ArrayLoopExpr(Expr):
 class SumLoopExpr(Expr):
     pairs : [(Variable, Expr)]
     expr : Expr
+    ty = None
 
     def __init__(self, _pairs : [(Variable, Expr)], _expr : Expr):
         self.pairs = _pairs
         self.expr = _expr
 
     def to_string(self):
-        ret = '(SumLoopExpr '
+        typestr = ''
+        if self.ty is not None:
+            typestr = self.ty.to_string()
+        ret = '(SumLoopExpr ' + typestr
         for pair in self.pairs:
             ret += pair[0].to_string() + ' ' + pair[1].to_string() + ' '
         ret = ret[:-1] + ' ' + self.expr.to_string() + ')'
@@ -339,25 +396,34 @@ class ArrayType(Type):
 
 class TupleLiteralExpr(Expr):
     types : []
+    ty = None
 
     def __init__(self, _types : []):
         self.types = _types
 
     def to_string(self):
-        ret = '(TupleLiteralExpr '
+        typestr = ''
+        if self.ty is not None:
+            typestr = self.ty.to_string() + ' '
+        ret = '(TupleLiteralExpr ' + typestr
         for typ in self.types:
             ret += typ.to_string() + ' '
         ret = ret[:-1] + ')'
         return ret
 
+
 class ArrayLiteralExpr(Expr):
     types : []
+    ty = None
 
     def __init__(self, _types : []):
         self.types = _types
 
     def to_string(self):
-        ret = '(ArrayLiteralExpr '
+        typestr = ''
+        if self.ty is not None:
+            typestr = self.ty.to_string() + ' '
+        ret = '(ArrayLiteralExpr ' + typestr
         for typ in self.types:
             ret += typ.to_string() + ' '
         ret = ret[:-1] + ')'

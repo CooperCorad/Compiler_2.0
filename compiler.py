@@ -1,13 +1,13 @@
-import re
 import sys
 import mylexer
 import myparser
+import mytypechecker
 
 def main():
 
     flag = sys.argv[1]
     file_spec = sys.argv[2]
-    # flag = '-p'
+    # flag = '-t'
     # file_spec = 'test.jpl'
 
 
@@ -58,7 +58,22 @@ def main():
             exit(0)
 
     elif flag == '-t':
-        exit(0)
+        try:
+            newlexer = mylexer.Lexer(file)
+            newlexer.runner()
+
+            newparser = myparser.Parser(newlexer.tokens)
+            newparser.parse()
+
+            newtypechecker = mytypechecker.TypeChecker(newparser.program)
+            newtypechecker.verify_program()
+            print(newtypechecker.to_string())
+            print('\nCompilation succeeded')
+
+        except Exception as exception:
+            # print('Compilation failed ' + exception.__str__())
+            print('Compilation failed: ' + exception.__str__())
+            exit(0)
     else:
         print('A flag (-l, -p, -t) is required')
 
