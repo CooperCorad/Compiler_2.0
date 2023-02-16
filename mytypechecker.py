@@ -68,8 +68,8 @@ class TypeChecker:
 
             thenty = self.type_check(baseexpr.thenexp)
             elsety = self.type_check(baseexpr.elseexp)
-
-            if type(thenty) is not type(elsety):
+            #TODO: probably insufficient
+            if type(thenty) is not type(elsety) or (type(thenty) is TupleTy and type(elsety) is TupleTy and thenty.rank != elsety.rank):
                 ret = 'Your then and else expressions must have the same type! (' \
                       + thenty.to_string() + ' ' + elsety.to_string() + ')'
                 raise TypeCheckerException(ret)

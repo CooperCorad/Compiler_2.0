@@ -25,6 +25,7 @@ class TupleTy(Ty):
 
     def __init__(self, _tys: []):
         self.tys = _tys
+        self.rank = len(_tys)
 
     def to_string(self):
         ret = '(TupleType '
