@@ -42,8 +42,6 @@ class ArrayTy(Ty):
         ret = '(ArrayType ' + self.ty.to_string() + ' ' + str(self.rank) + ')'
         return ret
 
-
-
 class TypeCheckerException(Exception):
     def __init__(self, _message):
         self.message = _message

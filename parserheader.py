@@ -163,7 +163,7 @@ class VariableExpr(Expr):
     def to_string(self):
         typestr = ''
         if self.ty is not None:
-            typestr = ' ' + self.ty.to_string()
+            typestr = self.ty.to_string() + ' '
         ret = '(VarExpr ' + typestr + self.variable.to_string() + ')'
         return ret
 
@@ -180,7 +180,7 @@ class TupleIndexExpr(Expr):
     def to_string(self):
         typestr = ''
         if self.ty is not None:
-            typestr = ' ' + self.ty.to_string()
+            typestr = self.ty.to_string() + ' '
         ret = '(TupleIndexExpr ' + typestr + self.varxpr.to_string() + ' ' + str(self.index) + ')'
         return ret
 

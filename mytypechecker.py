@@ -3,7 +3,6 @@ from parserheader import *
 
 
 class TypeChecker:
-
     exprTree: []
 
     def __init__(self, _exprTree):
@@ -39,7 +38,7 @@ class TypeChecker:
                 baseexpr.lexpr.ty = lty
                 baseexpr.rexpr.ty = rty
 
-                if '+-/%'.__contains__(baseexpr.op):
+                if '+-/%*'.__contains__(baseexpr.op):
                     return lty
                 else:
                     return BoolTy()
@@ -53,7 +52,7 @@ class TypeChecker:
             if baseexpr.op == '!' and type(ty) is not BoolTy:
                 ret = 'You cannot use boolean negation (!) on non bool types! (' + ty.to_string() + ')'
                 raise TypeCheckerException(ret)
-            elif baseexpr.op == '-' and type(ty) is BoolTy:
+            elif baseexpr.op == '-' and (type(ty) is not FloatTy and type(ty) is not IntTy):
                 ret = 'You cannot use mathematical negation (-) on non mathematical types! (' + ty.to_string() + ')'
                 raise TypeCheckerException(ret)
             else:
@@ -64,7 +63,7 @@ class TypeChecker:
             ifty = self.type_check(baseexpr.ifexp)
             if type(ifty) is not BoolTy:
                 ret = 'You must have a boolean expression as your first argument to an if expression (' \
-                    + ifty.to_string() + ')'
+                      + ifty.to_string() + ')'
                 raise TypeCheckerException(ret)
 
             thenty = self.type_check(baseexpr.thenexp)
@@ -72,7 +71,7 @@ class TypeChecker:
 
             if type(thenty) is not type(elsety):
                 ret = 'Your then and else expressions must have the same type! (' \
-                     + thenty.to_string() + ' ' + elsety.to_string() + ')'
+                      + thenty.to_string() + ' ' + elsety.to_string() + ')'
                 raise TypeCheckerException(ret)
 
             baseexpr.ifexp.ty = ifty
@@ -102,8 +101,35 @@ class TypeChecker:
                     ret += ty.to_string() + ', '
                 raise TypeCheckerException(ret[:-2] + ')')
 
-            return ArrayTy(tylist[0], 1)
+            return ArrayTy(tylist[0], 1)    # TODO modular? for >1 rank arrays
+        elif type(baseexpr) is TupleIndexExpr:
+            ty = self.type_check(baseexpr.varxpr)
+            size = len(ty.tys)
+            if 0 < baseexpr.index > size - 1:
+                ret = 'You cannot access outside of the tuple literals bounds (' + str(size) + \
+                      ' is incompatible with ' + str(baseexpr.index - 1) + ')'
+                raise TypeCheckerException(ret)
+            baseexpr.varxpr.ty = ty
+            return ty.tys[baseexpr.index]
+        elif type(baseexpr) is ArrayIndexExpr:
+            valuetys = self.type_check(baseexpr.expr)
 
+            baseexpr.expr.ty = valuetys
+
+            if len(baseexpr.exprs) > valuetys.rank:
+                ret = 'You cannot access an array of rank ' + str(valuetys.rank) + ' at rank ' + str(len(baseexpr.exprs))
+                raise TypeCheckerException(ret)
+
+            for val in baseexpr.exprs:
+                ty = self.type_check(val)
+                if type(ty) is not IntTy:
+                    ret = 'You cannot access an array using a non integer! (' + ty.to_string() + ')'
+                    raise TypeCheckerException(ret)
+                val.ty = ty
+
+            return valuetys.ty
+        elif type(baseexpr) is VariableExpr and baseexpr.variable.to_string() == 'pict.':
+            return ArrayTy(TupleTy([FloatTy(), FloatTy(), FloatTy(), FloatTy()]), 2)
 
         # command checking
         elif type(baseexpr) is ShowCmd:
@@ -111,10 +137,3 @@ class TypeChecker:
             ty = self.type_check(showexpr)
             showexpr.ty = ty
             return ty
-
-
-
-
-
-
-
