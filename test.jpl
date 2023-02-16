@@ -1,1 +1,1 @@
-show if true then {1,2} else {1, 2324}
+show if true then pict.[1,2] else pict.[23,0.]

@@ -394,7 +394,6 @@ class Parser:
                 return self.parse_expr_lvl3_cont(index, finalexpr)
         return expr, index
 
-    # <expr> [+,-] <expr> todo finish
     def parse_expr_lvl3(self, index):
         nexpr, index = self.parse_expr_lvl4(index)
         return self.parse_expr_lvl3_cont(index, nexpr)
@@ -491,10 +490,9 @@ class Parser:
         # ( <expr> ) --> Parenthasized expr
         elif t == 'LPAREN':
             _, index = self.expect_tok(index, 'LPAREN')
-            expr, index = self.parse_expr_lvl0(index)   # TODO move this to
+            expr, index = self.parse_expr_lvl0(index)
             _, index = self.expect_tok(index, 'RPAREN')
             return expr, index
-        # TODO unsure of this!
         elif t == 'ARRAY':
             _, index = self.expect_tok(index, 'ARRAY')
             binds, index = self.parse_loop_binds(index)
@@ -578,7 +576,6 @@ class Parser:
 
     def parse_type_cont(self, index, in_type):
         t = self.peek_tok(index)
-        # <type> [ , ... ] --> Array type
         if t == 'LSQUARE':
             res, index = self.parse_array_type(index, in_type)
             return self.parse_type_cont(index, res)

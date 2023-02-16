@@ -1,35 +1,35 @@
 
 
-class Ty:
+class ResolvedType:
     def to_string(self):
         return ''
 
 
-class IntTy(Ty):
+class IntResolvedType(ResolvedType):
     def to_string(self):
         return '(IntType)'
 
     def equals(self, otherty):
-        return type(otherty) is IntTy
+        return type(otherty) is IntResolvedType
 
 
-class FloatTy(Ty):
+class FloatResolvedType(ResolvedType):
     def to_string(self):
         return '(FloatType)'
 
     def equals(self, otherty):
-        return type(otherty) is FloatTy
+        return type(otherty) is FloatResolvedType
 
 
-class BoolTy(Ty):
+class BoolResolvedType(ResolvedType):
     def to_string(self):
         return '(BoolType)'
 
     def equals(self, otherty):
-        return type(otherty) is BoolTy
+        return type(otherty) is BoolResolvedType
 
 
-class TupleTy(Ty):
+class TupleResolvedType(ResolvedType):
     tys: []
 
     def __init__(self, _tys: []):
@@ -43,7 +43,7 @@ class TupleTy(Ty):
         return ret[:-1] + ')'
 
     def equals(self, otherty):
-        if type(otherty) is not TupleTy or self.rank != otherty.rank:
+        if type(otherty) is not TupleResolvedType or self.rank != otherty.rank:
             return False
         for i in range(len(self.tys)):
             if not self.tys[i].equals(otherty.tys[i]):
@@ -51,8 +51,7 @@ class TupleTy(Ty):
         return True
 
 
-
-class ArrayTy(Ty):
+class ArrayResolvedType(ResolvedType):
     def __init__(self, _ty, _rank: int):
         self.ty = _ty
         self.rank = _rank
@@ -62,7 +61,7 @@ class ArrayTy(Ty):
         return ret
 
     def equals(self, otherty):
-        if type(otherty) is not ArrayTy:
+        if type(otherty) is not ArrayResolvedType:
             return False
         return type(self.ty) is type(otherty.ty) and self.rank == otherty.rank
 

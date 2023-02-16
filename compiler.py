@@ -64,7 +64,7 @@ def main():
             newparser.parse()
 
             newtypechecker = mytypechecker.TypeChecker(newparser.program)
-            newtypechecker.verify_program()
+            newtypechecker.type_check()
             print(newtypechecker.to_string())
             print('\nCompilation succeeded')
 

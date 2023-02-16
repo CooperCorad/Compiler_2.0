@@ -1,6 +1,6 @@
 import math
 
-from typecheckerheader import Ty
+from typecheckerheader import ResolvedType
 
 precedence = [['array', 'sum', 'if'],
                 ['&&', '||'],

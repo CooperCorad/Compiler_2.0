@@ -8,9 +8,9 @@ class TypeChecker:
     def __init__(self, _exprTree):
         self.exprTree = _exprTree
 
-    def verify_program(self):
+    def type_check(self):
         for expr in self.exprTree:
-            expr.ty = self.type_check(expr)
+            expr.ty = self.type_of(expr)
 
     def to_string(self):
         ret = ''
@@ -19,40 +19,39 @@ class TypeChecker:
 
         return ret[:-1]
 
-    def type_check(self, baseexpr: Expr):
+    def type_of(self, baseexpr: Expr):
+
         # literal checking
         if type(baseexpr) is FloatExpr:
-            return FloatTy()
+            return FloatResolvedType()
         elif type(baseexpr) is IntExpr:
-            return IntTy()
+            return IntResolvedType()
         elif type(baseexpr) is TrueExpr:
-            return BoolTy()
+            return BoolResolvedType()
         elif type(baseexpr) is FalseExpr:
-            return BoolTy()
+            return BoolResolvedType()
 
         # compound checking
         elif type(baseexpr) is BinopExpr:
-            lty = self.type_check(baseexpr.lexpr)
-            rty = self.type_check(baseexpr.rexpr)
+            lty = self.type_of(baseexpr.lexpr)
+            rty = self.type_of(baseexpr.rexpr)
             if type(lty) is type(rty):
                 baseexpr.lexpr.ty = lty
                 baseexpr.rexpr.ty = rty
-
                 if '+-/%*'.__contains__(baseexpr.op):
                     return lty
                 else:
-                    return BoolTy()
-
+                    return BoolResolvedType()
             else:
                 ret = 'You cannot have an expression that operates on two different types! (' \
                       + lty.to_string() + ' ' + baseexpr.op + ' ' + rty.to_string() + ')'
                 raise TypeCheckerException(ret)
         elif type(baseexpr) is UnopExpr:
-            ty = self.type_check(baseexpr.expr)
-            if baseexpr.op == '!' and type(ty) is not BoolTy:
+            ty = self.type_of(baseexpr.expr)
+            if baseexpr.op == '!' and type(ty) is not BoolResolvedType:
                 ret = 'You cannot use boolean negation (!) on non bool types! (' + ty.to_string() + ')'
                 raise TypeCheckerException(ret)
-            elif baseexpr.op == '-' and (type(ty) is not FloatTy and type(ty) is not IntTy):
+            elif baseexpr.op == '-' and (type(ty) is not FloatResolvedType and type(ty) is not IntResolvedType):
                 ret = 'You cannot use mathematical negation (-) on non mathematical types! (' + ty.to_string() + ')'
                 raise TypeCheckerException(ret)
             else:
@@ -60,15 +59,15 @@ class TypeChecker:
                 baseexpr.ty = ty
                 return ty
         elif type(baseexpr) is IfExpr:
-            ifty = self.type_check(baseexpr.ifexp)
-            if type(ifty) is not BoolTy:
+            ifty = self.type_of(baseexpr.ifexp)
+            if type(ifty) is not BoolResolvedType:
                 ret = 'You must have a boolean expression as your first argument to an if expression (' \
                       + ifty.to_string() + ')'
                 raise TypeCheckerException(ret)
 
-            thenty = self.type_check(baseexpr.thenexp)
-            elsety = self.type_check(baseexpr.elseexp)
-            #TODO: probably insufficient
+            thenty = self.type_of(baseexpr.thenexp)
+            elsety = self.type_of(baseexpr.elseexp)
+
             if not thenty.equals(elsety):
                 ret = 'Your then and else expressions must have the same type! (' \
                       + thenty.to_string() + ' ' + elsety.to_string() + ')'
@@ -81,29 +80,29 @@ class TypeChecker:
         elif type(baseexpr) is TupleLiteralExpr:
             tylist = []
             for val in baseexpr.types:
-                currty = self.type_check(val)
+                currty = self.type_of(val)
                 tylist.append(currty)
                 val.ty = currty
-            return TupleTy(tylist)
+            return TupleResolvedType(tylist)
         elif type(baseexpr) is ArrayLiteralExpr:
             tylist = []
             keeper = []
             for val in baseexpr.types:
-                currty = self.type_check(val)
+                currty = self.type_of(val)
                 tylist.append(currty)
                 val.ty = currty
                 keeper.append(type(currty))
 
-            uniquness = set(keeper)
-            if len(uniquness) > 1:
+            uniqueness = set(keeper)
+            if len(uniqueness) > 1:
                 ret = 'You cannot have multiple types in an array literal declaration ('
                 for ty in tylist:
                     ret += ty.to_string() + ', '
                 raise TypeCheckerException(ret[:-2] + ')')
 
-            return ArrayTy(tylist[0], 1)    # TODO modular? for >1 rank arrays
+            return ArrayResolvedType(tylist[0], 1)    # TODO modular? for >1 rank arrays
         elif type(baseexpr) is TupleIndexExpr:
-            ty = self.type_check(baseexpr.varxpr)
+            ty = self.type_of(baseexpr.varxpr)
             size = len(ty.tys)
             if 0 < baseexpr.index > size - 1:
                 ret = 'You cannot access outside of the tuple literals bounds (' + str(size) + \
@@ -112,28 +111,26 @@ class TypeChecker:
             baseexpr.varxpr.ty = ty
             return ty.tys[baseexpr.index]
         elif type(baseexpr) is ArrayIndexExpr:
-            valuetys = self.type_check(baseexpr.expr)
-
+            valuetys = self.type_of(baseexpr.expr)
             baseexpr.expr.ty = valuetys
-
             if len(baseexpr.exprs) > valuetys.rank:
                 ret = 'You cannot access an array of rank ' + str(valuetys.rank) + ' at rank ' + str(len(baseexpr.exprs))
                 raise TypeCheckerException(ret)
 
             for val in baseexpr.exprs:
-                ty = self.type_check(val)
-                if type(ty) is not IntTy:
+                ty = self.type_of(val)
+                if type(ty) is not IntResolvedType:
                     ret = 'You cannot access an array using a non integer! (' + ty.to_string() + ')'
                     raise TypeCheckerException(ret)
                 val.ty = ty
 
             return valuetys.ty
         elif type(baseexpr) is VariableExpr and baseexpr.variable.to_string() == 'pict.':
-            return ArrayTy(TupleTy([FloatTy(), FloatTy(), FloatTy(), FloatTy()]), 2)
+            return ArrayResolvedType(TupleResolvedType([FloatResolvedType(), FloatResolvedType(), FloatResolvedType(), FloatResolvedType()]), 2)
 
         # command checking
         elif type(baseexpr) is ShowCmd:
             showexpr = baseexpr.expr
-            ty = self.type_check(showexpr)
+            ty = self.type_of(showexpr)
             showexpr.ty = ty
             return ty

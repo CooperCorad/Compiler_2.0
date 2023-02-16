@@ -135,7 +135,6 @@ class Lexer:
         tokstr = search[0]
         return Token(toktype['op'], index, tokstr), index + len(tokstr)
 
-    # TODO perhaps unnecessary??
     def lex_keyword(self, index : int):
         reg_keyword = '^((array)|(assert)|(bool)|(else)|(false)|(float)|(fn)|(if)|(image)|(int)' \
                       '|(let)|(print)|(read)|(return)|(show)|(sum)|(then)|(time)|(to)|(true)|(type)|(write))'
