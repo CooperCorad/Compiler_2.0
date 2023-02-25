@@ -5,10 +5,10 @@ import mytypechecker
 
 def main():
 
-    flag = sys.argv[1]
-    file_spec = sys.argv[2]
-    # flag = '-t'
-    # file_spec = 'test.jpl'
+    # flag = sys.argv[1]
+    # file_spec = sys.argv[2]
+    flag = '-t'
+    file_spec = 'test.jpl'
 
     if flag[0] != '-':
         temp = flag
@@ -18,8 +18,8 @@ def main():
         file_reader = open(file_spec, 'r')
         file = ''.join(file_reader.readlines())
         file_reader.close()
-    except Exception:
-        print("Compilation failed!")
+    except Exception as error:
+        print("Compilation failed! " + error.__str__())
         exit(0)
 
     if flag == '-l':

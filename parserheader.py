@@ -566,7 +566,6 @@ class FnCmd(Cmd):
         return ret
 
 
-
 class Stmt(ASTNode):
     pass
 

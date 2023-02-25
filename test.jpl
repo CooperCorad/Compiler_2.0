@@ -1,1 +1,4 @@
-show if true then pict.[1,2] else pict.[23,0.]
+let x = 1
+let y = 2
+show x + y
+

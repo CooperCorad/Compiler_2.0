@@ -1,16 +1,28 @@
 from typecheckerheader import *
 from parserheader import *
+from symboltable import *
+
+globaltable = SymbolTable()
 
 
 class TypeChecker:
     exprTree: []
 
-    def __init__(self, _exprTree):
-        self.exprTree = _exprTree
+    def __init__(self, _exprtree):
+        self.exprTree = _exprtree
+        self.init_globaltable()
+
+    def init_globaltable(self):
+        globaltable.addinfo('args', VariableInfo(ArrayResolvedType(IntResolvedType(), 1)))
+        globaltable.addinfo('argnum', VariableInfo(IntResolvedType()))
 
     def type_check(self):
+        global globaltable
+
         for expr in self.exprTree:
-            expr.ty = self.type_of(expr)
+            expr.ty = self.type_of(expr, globaltable)
+
+        return globaltable
 
     def to_string(self):
         ret = ''
@@ -19,7 +31,7 @@ class TypeChecker:
 
         return ret[:-1]
 
-    def type_of(self, baseexpr: Expr):
+    def type_of(self, baseexpr: Expr, table: SymbolTable):
 
         # literal checking
         if type(baseexpr) is FloatExpr:
@@ -31,10 +43,19 @@ class TypeChecker:
         elif type(baseexpr) is FalseExpr:
             return BoolResolvedType()
 
+        # Name Checking
+        elif type(baseexpr) is VariableExpr:
+            if table.hasinfo(baseexpr.variable.variable):
+                info = table.getinfo(baseexpr.variable.variable)
+                if type(info) is VariableInfo:
+                    return info.rt
+                else:
+                    ret = 'This value is not a variable (' + type(info) + ')'
+                    raise TypeCheckerException(ret)
         # compound checking
         elif type(baseexpr) is BinopExpr:
-            lty = self.type_of(baseexpr.lexpr)
-            rty = self.type_of(baseexpr.rexpr)
+            lty = self.type_of(baseexpr.lexpr, table)
+            rty = self.type_of(baseexpr.rexpr, table)
             if type(lty) is type(rty):
                 baseexpr.lexpr.ty = lty
                 baseexpr.rexpr.ty = rty
@@ -47,7 +68,7 @@ class TypeChecker:
                       + lty.to_string() + ' ' + baseexpr.op + ' ' + rty.to_string() + ')'
                 raise TypeCheckerException(ret)
         elif type(baseexpr) is UnopExpr:
-            ty = self.type_of(baseexpr.expr)
+            ty = self.type_of(baseexpr.expr, table)
             if baseexpr.op == '!' and type(ty) is not BoolResolvedType:
                 ret = 'You cannot use boolean negation (!) on non bool types! (' + ty.to_string() + ')'
                 raise TypeCheckerException(ret)
@@ -59,14 +80,14 @@ class TypeChecker:
                 baseexpr.ty = ty
                 return ty
         elif type(baseexpr) is IfExpr:
-            ifty = self.type_of(baseexpr.ifexp)
+            ifty = self.type_of(baseexpr.ifexp, table)
             if type(ifty) is not BoolResolvedType:
                 ret = 'You must have a boolean expression as your first argument to an if expression (' \
                       + ifty.to_string() + ')'
                 raise TypeCheckerException(ret)
 
-            thenty = self.type_of(baseexpr.thenexp)
-            elsety = self.type_of(baseexpr.elseexp)
+            thenty = self.type_of(baseexpr.thenexp, table)
+            elsety = self.type_of(baseexpr.elseexp, table)
 
             if not thenty.equals(elsety):
                 ret = 'Your then and else expressions must have the same type! (' \
@@ -80,7 +101,7 @@ class TypeChecker:
         elif type(baseexpr) is TupleLiteralExpr:
             tylist = []
             for val in baseexpr.types:
-                currty = self.type_of(val)
+                currty = self.type_of(val, table)
                 tylist.append(currty)
                 val.ty = currty
             return TupleResolvedType(tylist)
@@ -88,7 +109,7 @@ class TypeChecker:
             tylist = []
             keeper = []
             for val in baseexpr.types:
-                currty = self.type_of(val)
+                currty = self.type_of(val, table)
                 tylist.append(currty)
                 val.ty = currty
                 keeper.append(type(currty))
@@ -102,35 +123,62 @@ class TypeChecker:
 
             return ArrayResolvedType(tylist[0], 1)    # TODO modular? for >1 rank arrays
         elif type(baseexpr) is TupleIndexExpr:
-            ty = self.type_of(baseexpr.varxpr)
+            ty = self.type_of(baseexpr.varxpr, table)
             size = len(ty.tys)
             if 0 < baseexpr.index > size - 1:
                 ret = 'You cannot access outside of the tuple literals bounds (' + str(size) + \
-                      ' is incompatible with ' + str(baseexpr.index - 1) + ')'
+                      ' is incompatible with ' + str(baseexpr.index) + ')'
                 raise TypeCheckerException(ret)
             baseexpr.varxpr.ty = ty
             return ty.tys[baseexpr.index]
         elif type(baseexpr) is ArrayIndexExpr:
-            valuetys = self.type_of(baseexpr.expr)
+            valuetys = self.type_of(baseexpr.expr, table)
             baseexpr.expr.ty = valuetys
             if len(baseexpr.exprs) > valuetys.rank:
                 ret = 'You cannot access an array of rank ' + str(valuetys.rank) + ' at rank ' + str(len(baseexpr.exprs))
                 raise TypeCheckerException(ret)
 
             for val in baseexpr.exprs:
-                ty = self.type_of(val)
+                ty = self.type_of(val, table)
                 if type(ty) is not IntResolvedType:
                     ret = 'You cannot access an array using a non integer! (' + ty.to_string() + ')'
                     raise TypeCheckerException(ret)
                 val.ty = ty
 
             return valuetys.ty
-        elif type(baseexpr) is VariableExpr and baseexpr.variable.to_string() == 'pict.':
-            return ArrayResolvedType(TupleResolvedType([FloatResolvedType(), FloatResolvedType(), FloatResolvedType(), FloatResolvedType()]), 2)
+        elif type(baseexpr) is ArrayLoopExpr:
+            loopty = self.type_of(baseexpr.expr, table)
+            for pair in baseexpr.pairs:
+                ty = self.type_of(pair[1], table)
+                if type(ty) is not IntResolvedType:
+                    raise TypeCheckerException('You cannot iterate through arrays with non int increments ' + ty.to_string())
+                pair[1].ty = loopty
 
         # command checking
         elif type(baseexpr) is ShowCmd:
             showexpr = baseexpr.expr
-            ty = self.type_of(showexpr)
+            ty = self.type_of(showexpr, table)
             showexpr.ty = ty
+            return ty
+        # TODO iffy on these?
+        elif type(baseexpr) is AssertCmd:
+            assertexpr = baseexpr.expr
+            ty = self.type_of(assertexpr, table)
+            if type(ty) is not BoolResolvedType:
+                raise TypeCheckerException('Assert must evaluate a boolean expression, not ' + ty.to_string())
+            assertexpr.ty = ty
+            return ty
+        elif type(baseexpr) is TimeCmd:
+            return self.type_of(baseexpr.cmd, table)
+        elif type(baseexpr) is WriteCmd:
+            writeexpr = baseexpr.expr
+            ty = self.type_of(writeexpr, table)
+            writeexpr.ty = ty
+            return ty
+        elif type(baseexpr) is LetCmd:
+            letexpr = baseexpr.expr
+            ty = self.type_of(letexpr, table)
+            table.addinfo(baseexpr.lvalue.variable.variable.variable, VariableInfo(ty))
+            letexpr.ty = ty
+            baseexpr.lvalue.ty = ty
             return ty
