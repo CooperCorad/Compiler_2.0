@@ -293,7 +293,7 @@ class ArrayLoopExpr(Expr):
     def to_string(self):
         typestr = ''
         if self.ty is not None:
-            typestr = self.ty.to_string()
+            typestr = self.ty.to_string() + ' '
         ret = '(ArrayLoopExpr ' + typestr
         for pair in self.pairs:
             ret += pair[0].to_string() + ' ' + pair[1].to_string() + ' '
@@ -313,7 +313,7 @@ class SumLoopExpr(Expr):
     def to_string(self):
         typestr = ''
         if self.ty is not None:
-            typestr = self.ty.to_string()
+            typestr = self.ty.to_string() + ' '
         ret = '(SumLoopExpr ' + typestr
         for pair in self.pairs:
             ret += pair[0].to_string() + ' ' + pair[1].to_string() + ' '

@@ -52,6 +52,9 @@ class TypeChecker:
                 else:
                     ret = 'This value is not a variable (' + type(info) + ')'
                     raise TypeCheckerException(ret)
+            else:
+                ret = 'Unknown variable ' + baseexpr.to_string()
+                raise TypeCheckerException(ret)
         # compound checking
         elif type(baseexpr) is BinopExpr:
             lty = self.type_of(baseexpr.lexpr, table)
@@ -147,13 +150,31 @@ class TypeChecker:
 
             return valuetys.ty
         elif type(baseexpr) is ArrayLoopExpr:
-            loopty = self.type_of(baseexpr.expr, table)
+            arraytable = table.makechild()
             for pair in baseexpr.pairs:
-                ty = self.type_of(pair[1], table)
+                if type(pair[0]) is Variable:
+                    arraytable.addinfo(pair[0].variable, VariableInfo(IntResolvedType()))
+                ty = self.type_of(pair[1], arraytable)
                 if type(ty) is not IntResolvedType:
                     raise TypeCheckerException('You cannot iterate through arrays with non int increments ' + ty.to_string())
-                pair[1].ty = loopty
+                pair[1].ty = ty
+            loopty = self.type_of(baseexpr.expr, arraytable)
+            baseexpr.expr.ty = loopty
+            return ArrayResolvedType(loopty, len(baseexpr.pairs))
+        elif type(baseexpr) is SumLoopExpr:
+            sumlooptable = table.makechild()
+            for pair in baseexpr.pairs:
+                if type(pair[0]) is Variable:
+                    sumlooptable.addinfo(pair[0].variable, VariableInfo(IntResolvedType()))
 
+                ty = self.type_of(pair[1], table)
+                if type(ty) is not IntResolvedType:
+                    raise TypeCheckerException(
+                        'You cannot iterate through arrays with non int increments ' + ty.to_string())
+                pair[1].ty = ty
+            loopty = self.type_of(baseexpr.expr, sumlooptable)
+            baseexpr.expr.ty = loopty
+            return loopty
         # command checking
         elif type(baseexpr) is ShowCmd:
             showexpr = baseexpr.expr
@@ -178,7 +199,10 @@ class TypeChecker:
         elif type(baseexpr) is LetCmd:
             letexpr = baseexpr.expr
             ty = self.type_of(letexpr, table)
-            table.addinfo(baseexpr.lvalue.variable.variable.variable, VariableInfo(ty))
+            table.addlval(baseexpr.lvalue, VariableInfo(ty))
             letexpr.ty = ty
-            baseexpr.lvalue.ty = ty
             return ty
+        elif type(baseexpr) is ReadCmd:
+            imgty = ArrayResolvedType(TupleResolvedType([FloatResolvedType(), FloatResolvedType(), FloatResolvedType(), FloatResolvedType()]), 2)
+            table.addinfo(baseexpr.vararg.variable.variable, VariableInfo(imgty))
+            return imgty
