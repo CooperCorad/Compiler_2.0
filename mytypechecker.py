@@ -224,3 +224,5 @@ class TypeChecker:
                 ret = 'Cannot bind image (type ' + imgty.to_string() + ') to ' + cmd.vararg.to_string()
                 raise TypeCheckerException(ret)
 
+        elif type(cmd) is TimeCmd:
+            self.type_cmd(cmd.cmd, table)
