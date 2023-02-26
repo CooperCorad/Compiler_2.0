@@ -47,8 +47,6 @@ class SymbolTable:
             raise TypeCheckerException('You cannot shadow ' + name)
         self.table[name] = info
 
-    def addlval(self, lval: ArgLValue, info: NameInfo):
-        if isinstance(lval.variable, VarArg):
-            name = lval.variable.variable.variable
-            self.addinfo(name, info)
+
+
 

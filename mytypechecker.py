@@ -10,11 +10,11 @@ class TypeChecker:
 
     def __init__(self, _exprtree):
         self.exprTree = _exprtree
-        self.init_globaltable()
+        self.init_globaltable(globaltable)
 
-    def init_globaltable(self):
-        globaltable.addinfo('args', VariableInfo(ArrayResolvedType(IntResolvedType(), 1)))
-        globaltable.addinfo('argnum', VariableInfo(IntResolvedType()))
+    def init_globaltable(self, table: SymbolTable):
+        table.addinfo('args', VariableInfo(ArrayResolvedType(IntResolvedType(), 1)))
+        table.addinfo('argnum', VariableInfo(IntResolvedType()))
 
     def type_check(self):
         global globaltable
@@ -30,6 +30,21 @@ class TypeChecker:
             ret += expr.to_string() + '\n'
 
         return ret[:-1]
+
+    def addlval(self, lval: ArgLValue, table: SymbolTable, ty: ResolvedType):
+        if issubclass(ArgLValue, type(lval)):
+            if type(lval.variable) is VarArg:
+                name = lval.variable.variable.variable
+                table.addinfo(name, VariableInfo(ty))
+            elif isinstance(lval.variable, ArrayArgument):
+                name = lval.variable.var.variable
+                table.addinfo(name, VariableInfo(ty))
+
+    def addtuplelval(self, lval: TupleLValue, table: SymbolTable, ty: ResolvedType):
+        for i in range(len(lval.variables)):
+            if type(lval.variables[i]) is TupleLValue:
+                self.addtuplelval(lval.variables[i], table, ty.tys[i])
+            self.addlval(lval.variables[i], table, ty.tys[i])
 
     def type_of(self, baseexpr: Expr, table: SymbolTable):
 
@@ -199,7 +214,10 @@ class TypeChecker:
         elif type(baseexpr) is LetCmd:
             letexpr = baseexpr.expr
             ty = self.type_of(letexpr, table)
-            table.addlval(baseexpr.lvalue, VariableInfo(ty))
+            if type(baseexpr.lvalue) is TupleLValue:
+                self.addtuplelval(baseexpr.lvalue, table, ty)
+            else:
+                self.addlval(baseexpr.lvalue, table, ty)
             letexpr.ty = ty
             return ty
         elif type(baseexpr) is ReadCmd:

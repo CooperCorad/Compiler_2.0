@@ -1,2 +1,2 @@
-let a = array[i : 3, j : 3] i + j
-let x = a
+let {a[b]} = {[1, 2, 3]}
+
