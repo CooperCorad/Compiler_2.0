@@ -215,7 +215,6 @@ class TypeChecker:
         elif type(baseexpr) is LetCmd:
             letexpr = baseexpr.expr
             expty = self.type_of(letexpr, table)
-            # TODO add to symtbl
             table.addlval(baseexpr.lvalue, expty)
             letexpr.ty = expty
             return expty
