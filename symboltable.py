@@ -63,6 +63,9 @@ class SymbolTable:
 
     def addlval(self, lval, typ):
         if type(lval) is TupleLValue:
+            if type(typ) is not TupleResolvedType:
+                ret = 'You cannot bind a non tuple type ' + typ.to_string() + ' to a tuple'
+                raise TypeCheckerException(ret)
             if len(lval.variables) != typ.rank:
                 ret = 'You cannot bind rank ' + str(typ.rank) + ' tuple to rank ' + str(len(lval.variables)) + ' tuple'
                 raise TypeCheckerException(ret)

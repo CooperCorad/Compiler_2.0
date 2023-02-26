@@ -3,6 +3,7 @@ import mylexer
 import myparser
 import mytypechecker
 
+
 def main():
 
     flag = sys.argv[1]
@@ -73,7 +74,7 @@ def main():
             print('Compilation failed: ' + exception.__str__())
             exit(0)
     else:
-        print('A flag (-l, -p, -t) is required')
+        print('Valid flags: \n\t\'-l\': lex the program\n \t\'-p\': parse the program\n \t\'-t\': typecheck the program')
 
 
 if __name__ == '__main__':
