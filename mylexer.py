@@ -28,7 +28,6 @@ class Lexer:
         self.file_size = len(_file)
         self.tokens = []
 
-
     def lex_white_space(self, index : int):
         has_newline = False
 
@@ -108,7 +107,6 @@ class Lexer:
         index += 1
 
         return Token(toktype["string"], index, tokstr), index
-
 
     def lex_variable(self, index: int):
         reg_variable = '^[a-zA-Z]+[a-zA-Z0-9_\\.]*'

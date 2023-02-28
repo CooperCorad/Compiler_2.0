@@ -2,17 +2,6 @@ from typecheckerheader import *
 from parserheader import *
 
 
-class NameInfo:
-    pass
-
-
-class VariableInfo(NameInfo):
-    rt: ResolvedType
-
-    def __init__(self, _rt: ResolvedType):
-        self.rt = _rt
-
-
 class SymbolTable:
 
     def __init__(self):
@@ -42,7 +31,7 @@ class SymbolTable:
             else:
                 return self.parent.getinfo(name)
 
-    def addinfo(self, name: str, info: NameInfo):
+    def addinfo(self, name: str, info):
         if self.hasinfo(name):
             raise TypeCheckerException('You cannot shadow ' + name)
         self.table[name] = info
@@ -71,11 +60,35 @@ class SymbolTable:
                 raise TypeCheckerException(ret)
             for i in range(len(lval.variables)):
                 self.addlval(lval.variables[i], typ.tys[i])
+
         else:
             self.addarg(lval, typ)
 
 
+class NameInfo:
+    pass
 
 
+class VariableInfo(NameInfo):
+    rt: ResolvedType
+
+    def __init__(self, _rt: ResolvedType):
+        self.rt = _rt
 
 
+class TypeInfo(NameInfo):
+    rt: ResolvedType
+
+    def __init__(self, _rt: ResolvedType):
+        self.rt = _rt
+
+
+class FunctionInfo(NameInfo):
+    argtys: []
+    retty: ResolvedType
+    fnscopetbl: SymbolTable
+
+    def __init__(self, _argtys: [], _retty: ResolvedType, _fnscopetbl):
+        self.argtys = _argtys
+        self.retty = _retty
+        self.fnscopetbl = _fnscopetbl

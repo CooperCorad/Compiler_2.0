@@ -1,30 +1,50 @@
 from symboltable import *
 
-globaltable = SymbolTable()
-
 
 class TypeChecker:
     exprTree: []
+    globaltable = SymbolTable()
 
     def __init__(self, _exprtree):
         self.exprTree = _exprtree
-        self.init_globaltable(globaltable)
+        self.init_globaltable()
 
-    def init_globaltable(self, table: SymbolTable):
-        table.addinfo('args', VariableInfo(ArrayResolvedType(IntResolvedType(), 1)))
-        table.addinfo('argnum', VariableInfo(IntResolvedType()))
+    def init_globaltable(self):
+        self.globaltable.addinfo('args', VariableInfo(ArrayResolvedType(IntResolvedType(), 1)))
+        self.globaltable.addinfo('argnum', VariableInfo(IntResolvedType()))
+        fl1_fl1_info = FunctionInfo([FloatResolvedType()], FloatResolvedType(), None)
+        fl1_fl1_names = ["sqrt", "exp", "sin", "cos", "tan", "asin", "acos", "atan", "log"]
+        for name in fl1_fl1_names:
+            self.globaltable.addinfo(name, fl1_fl1_info)
+        fl2_fl1_info = FunctionInfo([FloatResolvedType(), FloatResolvedType()], FloatResolvedType(), None)
+        fl2_fl1_names = ['pow', 'atan2']
+        for name in fl2_fl1_names:
+            self.globaltable.addinfo(name, fl2_fl1_info)
+        self.globaltable.addinfo('to_float', FunctionInfo([FloatResolvedType()], IntResolvedType(), None))
+        self.globaltable.addinfo('to_int', FunctionInfo([IntResolvedType], FloatResolvedType(), None))
 
     def type_check(self):
-        global globaltable
         for cmd in self.exprTree:
-            self.type_cmd(cmd, globaltable)
-        return globaltable
+            self.type_cmd(cmd, self.globaltable)
+        return self.globaltable
 
     def to_string(self):
         ret = ''
         for expr in self.exprTree:
             ret += expr.to_string() + '\n'
         return ret[:-1]
+
+    def bind_to_lval(self, binding, table):
+        if type(binding) is VarBinding:
+            return ArgLValue(binding.argument), self.type_of(binding.type, table)
+        elif type(binding) is TupleBinding:
+            lvals = []
+            rtys = []
+            for bind in binding.bindings:
+                lval, rty = self.bind_to_lval(bind, table)
+                lvals.append(lval)
+                rtys.append(rty)
+            return TupleLValue(lvals), TupleResolvedType(rtys)
 
     def type_of(self, baseexpr: Expr, table: SymbolTable):
         # literal checking
@@ -37,6 +57,22 @@ class TypeChecker:
         elif type(baseexpr) is FalseExpr:
             return BoolResolvedType()
 
+        # type to resolvedtype
+        elif type(baseexpr) is IntType:
+            return IntResolvedType()
+        elif type(baseexpr) is FloatType:
+            return FloatResolvedType()
+        elif type(baseexpr) is BoolType:
+            return BoolResolvedType()
+        elif type(baseexpr) is TupleType:
+            tys = []
+            for typs in baseexpr.types:
+                tys.append(self.type_of(typs, table))
+            return TupleResolvedType(tys)
+        elif type(baseexpr) is ArrayType:
+            ty = self.type_of(baseexpr.type, table)
+            return ArrayResolvedType(ty, baseexpr.count)
+
         # Name Checking
         elif type(baseexpr) is VariableExpr:
             if table.hasinfo(baseexpr.variable.variable):
@@ -45,6 +81,18 @@ class TypeChecker:
                     return info.rt
                 else:
                     ret = 'This value is not a variable (' + type(info) + ')'
+                    raise TypeCheckerException(ret)
+            else:
+                ret = 'Unknown variable ' + baseexpr.to_string()
+                raise TypeCheckerException(ret)
+        # TODO even necessary?
+        elif type(baseexpr) is VarType:
+            if table.hasinfo(baseexpr.variable.variable):
+                info = table.getinfo(baseexpr.variable.variable)
+                if type(info) is TypeInfo:
+                    return info.rt
+                else:
+                    ret = 'This value is not a type (' + type(info) + ')'
                     raise TypeCheckerException(ret)
             else:
                 ret = 'Unknown variable ' + baseexpr.to_string()
@@ -183,6 +231,46 @@ class TypeChecker:
             baseexpr.expr.ty = loopty
             return loopty
 
+        elif type(baseexpr) is CallExpr:
+            name = baseexpr.variable.variable
+            if table.hasinfo(name):
+                info = table.getinfo(name)
+                if type(info) is not FunctionInfo:
+                    ret = 'You cannot use ' + info.rt.to_string() + ' as a function'
+                    raise TypeCheckerException(ret)
+                for i in range(len(baseexpr.exprs)):
+                    expty = self.type_of(baseexpr.exprs[i], table)
+                    if not expty.equals(info.argtys[i]):
+                        ret = 'Your function argument types do not match: ' + expty.to_string() + ' is not ' + info.argtys[i].to_string()
+                        raise TypeCheckerException(ret)
+                    baseexpr.exprs[i].ty = expty
+                return info.retty
+            else:
+                ret = 'Uknown function call on ' + baseexpr.to_string()
+                raise TypeCheckerException(ret)
+
+    def type_stmt(self, stmt: Stmt, table: SymbolTable):
+        if type(stmt) is AssertStmt:
+            assertexpr = stmt.expr
+            expty = self.type_of(assertexpr, table)
+            if type(expty) is not BoolResolvedType:
+                ret = 'Assert statements must evaluate to a boolean expression, not ' + expty.to_string()
+                raise TypeCheckerException(ret)
+            assertexpr.ty = expty
+            return expty
+
+        elif type(stmt) is ReturnStmt:
+            retty = self.type_of(stmt.expr, table)
+            stmt.expr.ty = retty
+            return retty
+
+        elif type(stmt) is LetStmt:
+            letexpr = stmt.expr
+            expty = self.type_of(letexpr, table)
+            table.addlval(stmt.lval, expty)
+            letexpr.ty = expty
+            return expty
+
     def type_cmd(self, cmd: Cmd, table: SymbolTable):
         if type(cmd) is ShowCmd:
             showexpr = cmd.expr
@@ -226,3 +314,35 @@ class TypeChecker:
 
         elif type(cmd) is TimeCmd:
             self.type_cmd(cmd.cmd, table)
+
+        elif type(cmd) is TypeCmd:
+            typety = self.type_of(cmd.typeval, table)
+            table.addinfo(cmd.variable.variable, TypeInfo(typety))
+
+        elif type(cmd) is FnCmd:
+            fnname = cmd.variable.variable
+            fnscope = table.makechild()
+            argtys = []
+            for bind in cmd.bindings:
+                lval, varty = self.bind_to_lval(bind, fnscope)
+                argtys.append(varty)
+                fnscope.addlval(lval, varty)
+
+            retty = self.type_of(cmd.typ, table)
+            fninf = FunctionInfo(argtys, retty, fnscope)
+            table.addinfo(fnname, fninf)
+
+            emptyret = False
+            retfound = False
+            if type(retty) is TupleResolvedType and retty.rank == 0:
+                emptyret = True
+            for stmt in cmd.stmts:
+                stmtty = self.type_stmt(stmt, fnscope)
+                if type(stmt) is ReturnStmt:
+                    retfound = True
+                    if not retty.equals(stmtty):
+                        ret = 'Your return types do not match ' + stmtty.to_string() + ' is not previously declared ' + retty.to_string()
+                        raise TypeCheckerException(ret)
+            if not retfound and not emptyret:
+                ret = 'You have declared return type ' + retty.to_string() + ' but do no return'
+                raise TypeCheckerException(ret)
