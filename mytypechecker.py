@@ -20,8 +20,8 @@ class TypeChecker:
         fl2_fl1_names = ['pow', 'atan2']
         for name in fl2_fl1_names:
             self.globaltable.addinfo(name, fl2_fl1_info)
-        self.globaltable.addinfo('to_float', FunctionInfo([FloatResolvedType()], IntResolvedType(), None))
-        self.globaltable.addinfo('to_int', FunctionInfo([IntResolvedType], FloatResolvedType(), None))
+        self.globaltable.addinfo('to_float', FunctionInfo([IntResolvedType()], FloatResolvedType(), None))
+        self.globaltable.addinfo('to_int', FunctionInfo([FloatResolvedType()], IntResolvedType(), None))
 
     def type_check(self):
         for cmd in self.exprTree:
@@ -237,6 +237,9 @@ class TypeChecker:
                 info = table.getinfo(name)
                 if type(info) is not FunctionInfo:
                     ret = 'You cannot use ' + info.rt.to_string() + ' as a function'
+                    raise TypeCheckerException(ret)
+                if len(baseexpr.exprs) != len(info.argtys):
+                    ret = 'You must have ' + str(len(info.argtys)) + ' arguments for ' + name + ' call, you have ' + str(len(baseexpr.exprs))
                     raise TypeCheckerException(ret)
                 for i in range(len(baseexpr.exprs)):
                     expty = self.type_of(baseexpr.exprs[i], table)
