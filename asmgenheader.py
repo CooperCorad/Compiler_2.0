@@ -213,7 +213,7 @@ class Function:
         movesize = self.get_resolvedtypesize(expr.varxpr.ty.tys[expr.index], 0)
         out.append('; Moving ' + str(movesize) + ' bytes from rsp + ' + str(uptosize) + ' to rsp + ' + str(wholesize - movesize))
         for i in reversed(range(int(movesize/8))):
-            out.append('\tmov r10, [rsp + ' + str(movesize) + ' + ' + str(8 * i) + ']')
+            out.append('\tmov r10, [rsp + ' + str(uptosize) + ' + ' + str(8 * i) + ']')
             out.append('\tmov [rsp + ' + str(wholesize - movesize) + ' + ' + str(8 * i) + '], r10')
         out.append('add rsp, ' + str(wholesize - movesize))
         self.stack_size += (wholesize - movesize)
@@ -221,7 +221,7 @@ class Function:
 
     def gen_arrayliteralexpr(self, expr: ArrayLiteralExpr):
         out = []
-        movesize = 8 * len(expr.types)
+        movesize = self.get_resolvedtypesize(expr.types[0].ty, 0) * len(expr.types)
         out.append('mov rdi, ' + str(movesize))
         adjusted = self.adjust_stack(out)
         if adjusted:
@@ -281,6 +281,8 @@ class Function:
         out = []
 
         stackadjust = self.get_resolvedtypesize(cmd.expr.ty, 0)
+        if type(cmd.expr.ty) is ArrayResolvedType:
+            stackadjust = (cmd.expr.ty.rank + 1) * 8
         self.stack_size += stackadjust
         adjusted = self.adjust_stack(out)
         self.stack_size -= stackadjust
