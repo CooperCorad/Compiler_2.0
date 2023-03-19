@@ -84,10 +84,13 @@ class Function:
         elif type(expr.ty) is FloatResolvedType:
             out.append('movsd xmm1, [rsp]')
             out.append('add rsp, 8')
+            self.stack_size += 8
             out.append('pxor xmm0, xmm0')
             out.append('subsd xmm0, xmm1')
             out.append('sub rsp, 8')
+            self.stack_size -= 8
             out.append('movsd [rsp], xmm0')
+            self.stack_size += 8
 
         self.stack_size += 8
         self.code += out
@@ -164,7 +167,10 @@ class Function:
             elif op == '/':
                 out.append('divsd xmm0, xmm1')
             elif op == '%':
+                # adjusted = self.adjust_stack(out)
                 out.append('call _fmod')
+                # if adjusted:
+                #     self.unadjust_stack(out)
             elif op in ['==', '!=', '>=', '<=', '<', '>']:
                 if op == '==':
                     out.append('cmpeqsd xmm0, xmm1')
