@@ -107,6 +107,9 @@ class TypeChecker:
                 baseexpr.rexpr.ty = rty
                 if '+-/%*'.__contains__(baseexpr.op):
                     return lty
+                elif type(lty) is BoolResolvedType and baseexpr.op in ['<=', '>=', '>', '<']:
+                    ret = 'You cannot mathematically compare booleans!'
+                    raise TypeCheckerException(ret)
                 else:
                     return BoolResolvedType()
             else:
@@ -244,7 +247,7 @@ class TypeChecker:
                 for i in range(len(baseexpr.exprs)):
                     expty = self.type_of(baseexpr.exprs[i], table)
                     if not expty.equals(info.argtys[i]):
-                        ret = 'Your function argument types do not match: ' + expty.to_string() + ' is not ' + info.argtys[i].to_string()
+                        ret = 'Your \"' + name + '\" function argument types do not match: ' + expty.to_string() + ' is not expected ' + info.argtys[i].to_string()
                         raise TypeCheckerException(ret)
                     baseexpr.exprs[i].ty = expty
                 return info.retty

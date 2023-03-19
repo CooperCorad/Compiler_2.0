@@ -1,6 +1,7 @@
 from parserheader import *
 from typecheckerheader import *
 
+
 class Parser:
     tokens = []
     program = []

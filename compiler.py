@@ -2,14 +2,14 @@ import sys
 import mylexer
 import myparser
 import mytypechecker
-
+import myasmgenerator
 
 def main():
 
-    flag = sys.argv[1]
-    file_spec = sys.argv[2]
-    # flag = '-t'
-    # file_spec = 'test.jpl'
+    # flag = sys.argv[1]
+    # file_spec = sys.argv[2]
+    flag = '-s'
+    file_spec = 'test.jpl'
 
     if flag[0] != '-':
         temp = flag
@@ -73,8 +73,31 @@ def main():
             # print('Compilation failed ' + exception.__str__())
             print('Compilation failed: ' + exception.__str__())
             exit(0)
+
+    elif flag == '-s':
+        try:
+            newlexer = mylexer.Lexer(file)
+            newlexer.runner()
+
+            newparser = myparser.Parser(newlexer.tokens)
+            newparser.parse()
+
+            newtypechecker = mytypechecker.TypeChecker(newparser.program)
+            newtypechecker.type_check()
+
+            newasmgen = myasmgenerator.AsmGenerator(newtypechecker.exprTree)
+            newasmgen.generate_code()
+            string = newasmgen.to_string()
+            print(string)
+            print('\nCompilation succeeded: assembly complete')
+
+        except Exception as exception:
+            # print('Compilation failed ' + exception.__str__())
+            print('Compilation failed: ' + exception.__str__())
+            exit(0)
     else:
-        print('Valid flags: \n\t\'-l\': lex the program\n \t\'-p\': parse the program\n \t\'-t\': typecheck the program')
+        print('Valid flags: \n\t\'-l\': lex the program\n \t\'-p\': parse the program\n \t\'-t\': typecheck the program'
+              '\n\t\'-s\': compile the program')
 
 
 if __name__ == '__main__':
