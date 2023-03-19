@@ -38,13 +38,6 @@ class AsmGenerator:
             name = self.add_const_name(const)
         return name
 
-    def add_const_type(self, ty: ResolvedType):
-        const = 'db `' + ty.to_string() + '`, 0'
-        if const not in self.consts.keys():
-            name = 'const' + str(len(self.consts))
-            self.consts[const] = name
-        return self.consts[const]
-
     def add_const_name(self, const):
         const = 'dq ' + str(const)
         if const not in self.consts.keys():
@@ -54,6 +47,8 @@ class AsmGenerator:
         return self.consts[const]
 
     def add_const_string(self, const):
+        if issubclass(type(const), ResolvedType):
+            const = const.to_string()
         const = 'db `' + const + '`, 0'
         if const not in self.consts.keys():
             name = 'const' + str(len(self.consts))

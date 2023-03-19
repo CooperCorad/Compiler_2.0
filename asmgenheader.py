@@ -36,7 +36,7 @@ class Function:
 
     def __init__(self, _asm, _name : str):
         self.asm = _asm
-        self.stack_size = 8 # TODO start at 0 or 8, what to cmp with for adjust_stack()??
+        self.stack_size = 0
         self.code = []
         self.name = _name + ':\n_' + _name + ':\n'
         self.jumps = []
@@ -119,6 +119,7 @@ class Function:
                 word = 'divide'
                 if op == '%':
                     word = 'mod'
+
                 name = self.asm.add_const_string(word + ' by zero')
                 adjusted = self.adjust_stack(out)
                 out.append('lea rdi, [rel ' + name + '] ; ' + word + ' by zero')
@@ -129,6 +130,7 @@ class Function:
                 out.append('.jump' + str(jumpnum) + ':')
                 out.append('cqo')
                 out.append('idiv r10')
+
                 if op == '%':
                     out.append('mov rax, rdx')
 
@@ -147,6 +149,7 @@ class Function:
                 elif op == '>':
                     out.append('setg al')
                 out.append('and rax, 1')
+
             self.push_reg(out, 'rax')
 
         else:
@@ -212,16 +215,19 @@ class Function:
 
     def gen_tupleindexexpr(self, expr: TupleIndexExpr):
         out = []
+
         wholesize = self.get_resolvedtypesize(expr.varxpr.ty, 0)
         uptosize = 0
         for i in range(expr.index):
             uptosize += self.get_resolvedtypesize(expr.varxpr.ty.tys[i], 0)
         movesize = self.get_resolvedtypesize(expr.varxpr.ty.tys[expr.index], 0)
+
         out.append('; Moving ' + str(movesize) + ' bytes from rsp + ' + str(uptosize) + ' to rsp + ' + str(wholesize - movesize))
         for i in reversed(range(int(movesize/8))):
             out.append('\tmov r10, [rsp + ' + str(uptosize) + ' + ' + str(8 * i) + ']')
             out.append('\tmov [rsp + ' + str(wholesize - movesize) + ' + ' + str(8 * i) + '], r10')
         out.append('add rsp, ' + str(wholesize - movesize))
+
         self.stack_size += (wholesize - movesize)
         self.code += out
 
@@ -229,6 +235,7 @@ class Function:
         out = []
         movesize = self.get_resolvedtypesize(expr.types[0].ty, 0) * len(expr.types)
         out.append('mov rdi, ' + str(movesize))
+
         adjusted = self.adjust_stack(out)
         if adjusted:
             self.code += out
@@ -237,6 +244,7 @@ class Function:
         self.stack_size += movesize
         if adjusted:
             self.unadjust_stack(out)
+
         out.append('; Moving ' + str(movesize) + ' bytes from rsp to rax')
         for i in reversed(range(int(movesize/8))):
             increment = str(i * 8)
@@ -246,6 +254,7 @@ class Function:
         self.push_reg(out, 'rax')
         out.append('mov rax, ' + str(len(expr.types)))
         self.push_reg(out, 'rax')
+
         self.code += out
 
     def gen_expr(self, expr : Expr):
@@ -272,17 +281,6 @@ class Function:
                 self.gen_expr(typ)
             self.gen_arrayliteralexpr(expr)
 
-    def adjust_stack(self, stackinfo: []):
-        if self.stack_size % 16 != 0:
-            stackinfo.append('sub rsp, 8 ; Align stack')
-            self.stack_size -= 8
-            return True
-        return False
-
-    def unadjust_stack(self, stackinfo: []):
-        stackinfo.append('add rsp, 8 ; Remove alignment')
-        self.stack_size += 8
-
     def gen_showcmd(self, cmd: ShowCmd):
         out = []
 
@@ -295,8 +293,9 @@ class Function:
         if adjusted:
             self.code += out
             out = []
+
         self.gen_expr(cmd.expr)
-        name = self.asm.add_const_type(cmd.expr.ty)
+        name = self.asm.add_const_string(cmd.expr.ty)
         out.append('lea rdi, [rel ' + name + '] ; ' + cmd.expr.ty.to_string())
         out.append('lea rsi, [rsp]')
         out.append('call _show')
@@ -304,6 +303,7 @@ class Function:
         self.stack_size += stackadjust
         if adjusted:
             self.unadjust_stack(out)
+
         self.code += out
 
     def gen_cmd_code(self):
@@ -320,7 +320,6 @@ class Function:
 
     def gen_preample(self):
         out = ['push rbp', 'mov rbp, rsp']
-        self.stack_size += 8
         self.code += out
 
     def gen_postamble(self):
@@ -354,4 +353,15 @@ class Function:
 
     def push_reg(self, codeblock: [], reg: str):
         codeblock.append('push ' + reg)
+        self.stack_size += 8
+
+    def adjust_stack(self, stackinfo: []):
+        if self.stack_size % 16 != 0:
+            stackinfo.append('sub rsp, 8 ; Align stack')
+            self.stack_size -= 8
+            return True
+        return False
+
+    def unadjust_stack(self, stackinfo: []):
+        stackinfo.append('add rsp, 8 ; Remove alignment')
         self.stack_size += 8
