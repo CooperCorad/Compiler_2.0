@@ -1,1 +1,4 @@
-show 1 / 1
+show {1.0, 3, {1, 2}, false}{1}
+show 1
+show 1 * (1 / 1000)
+show 21. % 66.1

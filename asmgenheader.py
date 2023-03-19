@@ -61,14 +61,14 @@ class Function:
     def gen_trueexpr(self, expr: TrueExpr):
         out = []
         name = self.asm.add_const(expr)
-        out.append('mov ra, [' + name + '] ; True')
+        out.append('mov rax, [rel ' + name + '] ; True')
         self.push_reg(out, 'rax')
         self.code += out
 
     def gen_falseexpr(self, expr: TrueExpr):
         out = []
         name = self.asm.add_const(expr)
-        out.append('mov ra, [' + name + '] ; False')
+        out.append('mov rax, [rel ' + name + '] ; False')
         self.push_reg(out, 'rax')
         self.code += out
 
@@ -115,16 +115,22 @@ class Function:
                 out.append('cmp r10, 0')
                 jumpnum = self.asm.add_jump()
                 out.append('jne .jump' + str(jumpnum))
-                adjusted = self.adjust_stack(out)
 
                 word = 'divide'
                 if op == '%':
                     word = 'mod'
                 name = self.asm.add_const_string(word + ' by zero')
+                adjusted = self.adjust_stack(out)
                 out.append('lea rdi, [rel ' + name + '] ; ' + word + ' by zero')
                 out.append('call _fail_assertion')
                 if adjusted:
                     self.unadjust_stack(out)
+
+                out.append('.jump' + str(jumpnum) + ':')
+                out.append('cqo')
+                out.append('idiv r10')
+                if op == '%':
+                    out.append('mov rax, rdx')
 
             elif op in ['==', '!=', '>=', '<=', '<', '>']:
                 out.append('cmp rax, r10')
@@ -158,6 +164,10 @@ class Function:
                 out.append('subsd xmm0, xmm1')
             elif op == '*':
                 out.append('mulsd xmm0, xmm1')
+            elif op == '/':
+                out.append('divsd xmm0, xmm1')
+            elif op == '%':
+                out.append('call _fmod')
             elif op in ['==', '!=', '>=', '<=', '<', '>']:
                 if op == '==':
                     out.append('cmpeqsd xmm0, xmm1')
@@ -187,6 +197,28 @@ class Function:
 
         self.code += out
 
+    def get_resolvedtypesize(self, ty: ResolvedType, size: int):
+        if type(ty) is TupleResolvedType:
+            for rtys in ty.tys:
+                size += self.get_resolvedtypesize(rtys, 0)
+            return size
+        else:
+            return 8
+
+    def gen_tupleindexexpr(self, expr: TupleIndexExpr):
+        out = []
+        wholesize = self.get_resolvedtypesize(expr.varxpr.ty, 0)
+        uptosize = 0
+        for i in range(expr.index):
+            uptosize += self.get_resolvedtypesize(expr.varxpr.ty.tys[i], 0)
+        movesize = self.get_resolvedtypesize(expr.varxpr.ty.tys[expr.index], 0)
+        out.append('; Moving ' + str(movesize) + ' bytes from rsp + ' + str(uptosize) + ' to rsp + ' + str(wholesize - movesize))
+        for i in reversed(range(int(movesize/8))):
+            out.append('\tmov r10, [rsp + ' + str(movesize) + ' + ' + str(8 * i) + ']')
+            out.append('\tmov [rsp + ' + str(wholesize - movesize) + ' + ' + str(8 * i) + '], r10')
+        out.append('add rsp, ' + str(wholesize - movesize))
+        self.stack_size += (wholesize - movesize)
+        self.code += out
 
     def gen_expr(self, expr : Expr):
         if type(expr) is IntExpr:
@@ -201,6 +233,12 @@ class Function:
             return self.gen_unopexpr(expr)
         elif type(expr) is BinopExpr:
             return self.gen_binopexpr(expr)
+        elif type(expr) is TupleLiteralExpr:
+            for typ in reversed(expr.types):
+                self.gen_expr(typ)
+        elif type(expr) is TupleIndexExpr:
+            self.gen_expr(expr.varxpr)
+            self.gen_tupleindexexpr(expr)
 
     def adjust_stack(self, stackinfo: []):
         if self.stack_size % 16 != 0:
@@ -213,35 +251,25 @@ class Function:
         stackinfo.append('add rsp, 8 ; Remove alignment')
         self.stack_size += 8
 
-    def gen_divmod_jumps(self, expr: BinopExpr, stackinfo: []):
-        if type(expr.rexpr) is BinopExpr:
-            self.gen_divmod_jumps(expr.rexpr, stackinfo)
-        if type(expr.lexpr) is BinopExpr:
-            self.gen_divmod_jumps(expr.lexpr, stackinfo)
-        elif expr.op in ['/', '%']:
-            stackinfo.append('.jump' + str(self.asm.jmp_counter - 1) + ':')
-            stackinfo.append('cqo')
-            stackinfo.append('idiv r10')
-            if expr.op == '%':
-                stackinfo.append('mov rax, rdx')
-            self.push_reg(stackinfo, 'rax')
-
     def gen_showcmd(self, cmd: ShowCmd):
         out = []
+
+        stackadjust = self.get_resolvedtypesize(cmd.expr.ty, 0)
+        self.stack_size += stackadjust
+        adjusted = self.adjust_stack(out)
+        self.stack_size -= stackadjust
+        if adjusted:
+            self.code += out
+            out = []
         self.gen_expr(cmd.expr)
-
-        # TODO Recursive for things like 1 / 2 / 3
-        # TODO for floats as well!
-        if type(cmd.expr) is BinopExpr and cmd.expr.op in ['/', '%']:
-            self.code.pop()
-            self.gen_divmod_jumps(cmd.expr, out)
-
         name = self.asm.add_const_type(cmd.expr.ty)
         out.append('lea rdi, [rel ' + name + '] ; ' + cmd.expr.ty.to_string())
         out.append('lea rsi, [rsp]')
         out.append('call _show')
-        out.append('add rsp, 8')    # TODO adjust_stack() call??
-        self.stack_size += 8
+        out.append('add rsp, ' + str(stackadjust))
+        self.stack_size += stackadjust
+        if adjusted:
+            self.unadjust_stack(out)
         self.code += out
 
     def gen_cmd_code(self):
