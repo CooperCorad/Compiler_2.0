@@ -41,9 +41,6 @@ class Function:
         self.name = _name + ':\n_' + _name + ':\n'
         self.jumps = []
 
-    def gen_jump(self, count: int):
-        pass
-
     def gen_intexpr(self, expr: IntExpr):
         out = []
         name = self.asm.add_const(expr)
@@ -85,7 +82,7 @@ class Function:
             out.append('push rax')
 
         elif type(expr.ty) is FloatResolvedType:
-            out.append('movsd xmm1 [rsp]')
+            out.append('movsd xmm1, [rsp]')
             out.append('add rsp, 8')
             out.append('pxor xmm0, xmm0')
             out.append('subsd xmm0, xmm1')
@@ -186,7 +183,7 @@ class Function:
                 out.append('movq rax, xmm1')
                 out.append('and rax, 1')
                 self.push_reg(out, 'rax')
-            elif op in ['<=', '<']:
+            elif op in ['<=', '<', '==', '!=']:
                 out.append('movq rax, xmm0')
                 out.append('and rax, 1')
                 self.push_reg(out, 'rax')
@@ -202,6 +199,8 @@ class Function:
             for rtys in ty.tys:
                 size += self.get_resolvedtypesize(rtys, 0)
             return size
+        elif type(ty) is ArrayResolvedType:
+            return (ty.rank + 1) * 8
         else:
             return 8
 
@@ -218,6 +217,29 @@ class Function:
             out.append('\tmov [rsp + ' + str(wholesize - movesize) + ' + ' + str(8 * i) + '], r10')
         out.append('add rsp, ' + str(wholesize - movesize))
         self.stack_size += (wholesize - movesize)
+        self.code += out
+
+    def gen_arrayliteralexpr(self, expr: ArrayLiteralExpr):
+        out = []
+        movesize = 8 * len(expr.types)
+        out.append('mov rdi, ' + str(movesize))
+        adjusted = self.adjust_stack(out)
+        if adjusted:
+            self.code += out
+            out = []
+        out.append('call _jpl_alloc')
+        self.stack_size += movesize
+        if adjusted:
+            self.unadjust_stack(out)
+        out.append('; Moving ' + str(movesize) + ' bytes from rsp to rax')
+        for i in reversed(range(int(movesize/8))):
+            increment = str(i * 8)
+            out.append('\tmov r10, [rsp + ' + increment + ']')
+            out.append('\tmov [rax + ' + increment + '], r10')
+        out.append('add rsp, ' + str(movesize))
+        self.push_reg(out, 'rax')
+        out.append('mov rax, ' + str(len(expr.types)))
+        self.push_reg(out, 'rax')
         self.code += out
 
     def gen_expr(self, expr : Expr):
@@ -239,6 +261,10 @@ class Function:
         elif type(expr) is TupleIndexExpr:
             self.gen_expr(expr.varxpr)
             self.gen_tupleindexexpr(expr)
+        elif type(expr) is ArrayLiteralExpr:
+            for typ in reversed(expr.types):
+                self.gen_expr(typ)
+            self.gen_arrayliteralexpr(expr)
 
     def adjust_stack(self, stackinfo: []):
         if self.stack_size % 16 != 0:
