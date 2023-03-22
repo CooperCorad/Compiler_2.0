@@ -85,7 +85,6 @@ class TypeChecker:
             else:
                 ret = 'Unknown variable ' + baseexpr.to_string()
                 raise TypeCheckerException(ret)
-        # TODO even necessary?
         elif type(baseexpr) is VarType:
             if table.hasinfo(baseexpr.variable.variable):
                 info = table.getinfo(baseexpr.variable.variable)
