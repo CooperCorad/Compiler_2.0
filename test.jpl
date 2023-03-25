@@ -1,4 +1,0 @@
-let {x, z} = {1, 2}
-let alpha = false
-let y = {x, z, alpha}
-show y

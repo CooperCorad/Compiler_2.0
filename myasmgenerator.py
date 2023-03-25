@@ -74,6 +74,7 @@ class AsmGenerator:
             ret += func.to_string()
         return ret
 
+
 class Function:
     stackdesc: StackDescription
     code : [str]
@@ -305,7 +306,7 @@ class Function:
 
         self.code += out
 
-    def gen_varexp(self, expr: VariableExpr):
+    def gen_varexpr(self, expr: VariableExpr):
         out = []
         movesize = self.get_resolvedtypesize(expr.ty, 0)
         out.append('sub rsp, ' + str(movesize))
@@ -318,6 +319,86 @@ class Function:
             out.append('\tmov [rsp + ' + str(movesize - increment) + '], r10')
 
         self.code += out
+
+    def gen_callexpr(self, expr: CallExpr):
+        out = []
+
+        paramtys = []
+        for exp in expr.exprs:
+            paramtys.append(exp.ty)
+        cc = CallingConvention(paramtys, expr.ty, self.stackdesc)
+
+        if type(expr.ty) is TupleResolvedType:
+            returnspace = self.get_resolvedtypesize(expr.ty, 0)
+            out.append('sub rsp, ' + str(returnspace))
+            self.stackdesc.stacksize -= returnspace
+            tempstack = self.stackdesc.stacksize
+            self.code += out
+            out = []
+
+        # stackadjust = self.get_resolvedtypesize(expr.ty, 0)
+        # if type(cmd.expr.ty) is ArrayResolvedType:
+        #     stackadjust = (cmd.expr.ty.rank + 1) * 8
+        # self.stackdesc.stacksize += stackadjust
+        # stackadjust = 0
+        # for subexp in expr.exprs:
+        #     stackadjust += self.get_resolvedtypesize(subexp.ty, 0)
+        #
+        # self.stackdesc.stacksize += stackadjust
+        # self.stackdesc.stacksize -= stackadjust
+
+        saindex = len(self.code)
+
+
+        for i in reversed(cc.stacklocs):
+            self.gen_expr(expr.exprs[i])
+
+        pops = []
+        for i in reversed(cc.reglocs):
+            currexpr = expr.exprs[i]
+            currexprty = type(currexpr.ty)
+            self.gen_expr(currexpr)
+
+            if currexprty is IntResolvedType or currexprty is BoolResolvedType:
+                pops.insert(0, 'pop ' + cc.regnames[i])
+                self.stackdesc.stacksize -= 8
+            elif currexprty is FloatResolvedType:
+                pops.insert(0, 'add rsp, 8')
+                self.stackdesc.stacksize += 8
+                pops.insert(0, 'movsd ' + cc.regnames[i] + ', [rsp]')
+
+        adjusted = self.adjust_stack(out)
+        if adjusted:
+            self.code[saindex:saindex] = out
+            out = []
+
+        out += pops
+
+        if type(expr.ty) is TupleResolvedType:
+            out.append('lea rdi, [rsp + ' + str((self.stackdesc.stacksize - tempstack)) + ']')
+
+        out.append('call _' + expr.variable.variable)
+
+        for i in cc.stacklocs:
+            size = self.get_resolvedtypesize(expr.exprs[i].ty, 0)
+            out.append('add rsp, ' + str(size))
+            self.stackdesc.stacksize += size
+
+        if adjusted:
+            self.unadjust_stack(out)
+
+        returnty = type(expr.ty)
+        if returnty is FloatResolvedType:
+            out.append('sub rsp, 8')
+            self.stackdesc.stacksize -= 8
+            out.append('movsd [rsp], xmm0')
+        elif returnty is IntResolvedType or returnty is BoolResolvedType:
+            self.push_reg(out, 'rax')
+        elif returnty is TupleResolvedType:
+            pass
+
+        self.code += out
+
 
     def gen_expr(self, expr : Expr):
         if type(expr) is IntExpr:
@@ -343,7 +424,9 @@ class Function:
                 self.gen_expr(typ)
             self.gen_arrayliteralexpr(expr)
         elif type(expr) is VariableExpr:
-            self.gen_varexp(expr)
+            self.gen_varexpr(expr)
+        elif type(expr) is CallExpr:
+            self.gen_callexpr(expr)
 
     def gen_showcmd(self, cmd: ShowCmd):
         out = []
@@ -386,12 +469,67 @@ class Function:
 
         self.code += out    # TODO necessary?? + same for init <out> at all
 
+
+    def gen_readcmd(self, cmd: ReadCmd):
+        out = []
+        out.append('sub rsp, 24')
+        self.stackdesc.stacksize -= 24
+        self.stackdesc.addargument(cmd.vararg.variable.variable, 24)
+        out.append('lea rdi, [rsp]')
+        adjusted = self.adjust_stack(out)
+        if adjusted:
+            self.code += out
+            out = []
+
+        name = self.asm.add_const_string(cmd.filename[1:-1])
+        out.append('lea rsi, [rel ' + name + '] ; ' + cmd.filename[1:-1])
+        out.append('call _read_image')
+        if adjusted:
+            self.unadjust_stack(out)
+
+        self.code += out
+
+
+    def gen_retstmt(self, stmt: ReturnStmt):
+        pass
+
+    def gen_stmts(self, stmts):
+        for stmt in stmts:
+            stmtty = type(stmt)
+            if stmtty is ReturnStmt:
+                self.gen_retstmt(stmt)
+            # elif stmtty is LetStmt:
+            #     self.gen_letstmt(stmt)
+
+    def gen_fnpreamble(self, binds):
+        # cc = CallingConvention()
+        pass
+
+    def gen_fnspace(self, cmd: FnCmd):
+        self.gen_preample()
+        self.gen_fnpreamble(cmd.bindings)
+
+        self.gen_stmts(cmd.stmts)
+
+        self.gen_postamble()
+
+    def gen_fncmd(self, cmd: FnCmd):
+        func = Function(self.asm, cmd.variable.variable)
+        func.gen_fnspace(cmd)
+        self.asm.fxns.append(func)
+
+
     def gen_cmd_code(self):
         for cmd in self.asm.exprTree:
             if type(cmd) is ShowCmd:
                 self.gen_showcmd(cmd)
             elif type(cmd) is LetCmd:
                 self.gen_letcmd(cmd)
+            elif type(cmd) is ReadCmd:
+                self.gen_readcmd(cmd)
+            elif type(cmd) is FnCmd:
+                self.gen_fncmd(cmd)
+
 
     def gen_main(self):
         self.gen_preample()
@@ -416,7 +554,9 @@ class Function:
         self.code += out
 
     def gen_global_callee_unsave(self):
-        out = ['add rsp, ' + str(self.stackdesc.localvarsize) + ' ; Local variables']
+        out = []
+        if self.stackdesc.localvarsize > 0:
+            out.append('add rsp, ' + str(self.stackdesc.localvarsize) + ' ; Local variables')
         self.pop_reg(out, 'r12')
         self.code += out
 
