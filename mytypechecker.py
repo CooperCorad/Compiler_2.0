@@ -312,7 +312,7 @@ class TypeChecker:
                     raise TypeCheckerException(ret)
                 for args in cmd.vararg.arguments:
                     table.addinfo(args.variable, VariableInfo(IntResolvedType()))
-                table.addinfo(cmd.vararg.var.variable, VariableInfo(imgty))
+                table.addinfo(cmd.vararg.variable.variable, VariableInfo(imgty))
             else:
                 ret = 'Cannot bind image (type ' + imgty.to_string() + ') to ' + cmd.vararg.to_string()
                 raise TypeCheckerException(ret)

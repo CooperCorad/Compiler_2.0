@@ -73,15 +73,15 @@ class TupleLValue(Argument):
 
 
 class ArrayArgument(Argument):
-    var : Variable
+    variable : Variable
     arguments : []
 
     def __init__(self, _var : Variable, _arguments : []):
-        self.var = _var
+        self.variable = _var
         self.arguments = _arguments
 
     def to_string(self):
-        ret = '(ArrayArgument ' + self.var.to_string() + ' '
+        ret = '(ArrayArgument ' + self.variable.to_string() + ' '
         for arg in self.arguments:
             ret += arg.to_string() + ' '
         ret = ret[:-1] + ')'

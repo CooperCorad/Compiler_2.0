@@ -71,8 +71,8 @@ class AsmGenerator:
 
         ret += '\nsection .text\n'
         for func in self.fxns:
-            ret += func.to_string()
-        return ret
+            ret += func.to_string() + '\n\n'
+        return ret[:-2]
 
 
 class Function:
@@ -328,6 +328,10 @@ class Function:
             paramtys.append(exp.ty)
         cc = CallingConvention(paramtys, expr.ty, self.stackdesc)
 
+        adjusted = self.adjust_stack(out)
+        # if adjusted:
+        #     self.c
+
         if type(expr.ty) is TupleResolvedType:
             returnspace = self.get_resolvedtypesize(expr.ty, 0)
             out.append('sub rsp, ' + str(returnspace))
@@ -335,19 +339,6 @@ class Function:
             tempstack = self.stackdesc.stacksize
             self.code += out
             out = []
-
-        # stackadjust = self.get_resolvedtypesize(expr.ty, 0)
-        # if type(cmd.expr.ty) is ArrayResolvedType:
-        #     stackadjust = (cmd.expr.ty.rank + 1) * 8
-        # self.stackdesc.stacksize += stackadjust
-        # stackadjust = 0
-        # for subexp in expr.exprs:
-        #     stackadjust += self.get_resolvedtypesize(subexp.ty, 0)
-        #
-        # self.stackdesc.stacksize += stackadjust
-        # self.stackdesc.stacksize -= stackadjust
-
-        saindex = len(self.code)
 
 
         for i in reversed(cc.stacklocs):
@@ -366,11 +357,6 @@ class Function:
                 pops.insert(0, 'add rsp, 8')
                 self.stackdesc.stacksize += 8
                 pops.insert(0, 'movsd ' + cc.regnames[i] + ', [rsp]')
-
-        adjusted = self.adjust_stack(out)
-        if adjusted:
-            self.code[saindex:saindex] = out
-            out = []
 
         out += pops
 
@@ -459,22 +445,17 @@ class Function:
         # TODO adjust?
         # TODO: add to stackdescrption.addlval? might be easier idk
         self.gen_expr(cmd.expr)
-        if type(cmd.lvalue) is TupleLValue:
-            for i in reversed(range(len(cmd.lvalue.variables))):
-                lv = cmd.lvalue.variables[i]
-                size = self.get_resolvedtypesize(cmd.expr.ty.tys[i], 0)
-                self.stackdesc.addlval(lv, size)
-        else:
-            self.stackdesc.addlval(cmd.lvalue, self.get_resolvedtypesize(cmd.expr.ty, 0))
+        self.stackdesc.insertlval(cmd.lvalue, cmd.expr.ty)
 
         self.code += out    # TODO necessary?? + same for init <out> at all
-
 
     def gen_readcmd(self, cmd: ReadCmd):
         out = []
         out.append('sub rsp, 24')
         self.stackdesc.stacksize -= 24
-        self.stackdesc.addargument(cmd.vararg.variable.variable, 24)
+        # self.stackdesc.addargument(cmd.vararg.variable.variable, 24)
+        imgty = ArrayResolvedType(TupleResolvedType([FloatResolvedType(), FloatResolvedType(), FloatResolvedType(), FloatResolvedType()]), 2)
+        self.stackdesc.insertarg(cmd.vararg, imgty)
         out.append('lea rdi, [rsp]')
         adjusted = self.adjust_stack(out)
         if adjusted:

@@ -46,7 +46,56 @@ class StackDescription:
 
     def addlval(self, lval, size):
         self.localvarsize += size
-        self.nameloc[lval.variable.variable.variable] = (8 + self.localvarsize)
+        if type(lval) is Variable:
+            name = lval.variable
+        # elif type(lval) is ArgLValue:
+        #     name = lval.variable.var.variable
+        else:
+            name = lval.variable.variable.variable
+        self.nameloc[name] = (8 + self.localvarsize)
+
+    def get_resolvedtypesize(self, ty: ResolvedType, size: int):
+        if type(ty) is TupleResolvedType:
+            for rtys in ty.tys:
+                size += self.get_resolvedtypesize(rtys, 0)
+            return size
+        elif type(ty) is ArrayResolvedType:
+            return (ty.rank + 1) * 8
+        else:
+            return 8
+
+    def insertarg(self, arg, ty):
+        if type(arg) is VarArg:
+            size = self.get_resolvedtypesize(ty, 0)
+            self.localvarsize += size
+            self.nameloc[arg.variable.variable] = self.localvarsize + 8  # TODO size not 8?
+        elif type(arg) is ArrayArgument:
+            self.localvarsize += 8  # pointer to mem
+            for argu in reversed(arg.arguments):
+                self.localvarsize += 8  # 8B int for size
+                self.nameloc[argu.variable] = (8 + self.localvarsize)
+            self.nameloc[arg.variable.variable] = (8 + self.localvarsize)
+
+    def insertlval(self, lval, ty):
+        tyty = type(ty)
+
+        if type(lval) is TupleLValue:
+            for i in reversed(range(len(lval.variables))):
+                tvar = lval.variables[i]
+                tty = ty.tys[i]
+                self.insertlval(tvar, tty)
+        elif tyty is IntResolvedType or tyty is FloatResolvedType or tyty is BoolResolvedType or tyty is TupleResolvedType:
+            size = self.get_resolvedtypesize(ty, 0)
+            self.localvarsize += size
+            self.nameloc[lval.variable.variable.variable] = (8 + self.localvarsize)
+        elif tyty is ArrayResolvedType:
+            self.insertarg(lval.variable, ty)
+
+
+
+
+
+
 
     def addargument(self, name, size):
         self.localvarsize += size

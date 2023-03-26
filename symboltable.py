@@ -44,7 +44,7 @@ class SymbolTable:
             if typ.rank != len(arg.variable.arguments):
                 ret = 'You cannot bind a rank ' + str(typ.rank) + ' array to a rank ' + str(len(arg.variable.arguments)) + ' array'
                 raise TypeCheckerException(ret)
-            name = arg.variable.var.variable
+            name = arg.variable.variable.variable
             self.addinfo(name, VariableInfo(typ))
             for args in arg.variable.arguments:
                 argname = args.variable
