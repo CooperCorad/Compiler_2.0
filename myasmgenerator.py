@@ -305,14 +305,13 @@ class Function:
             paramtys.append(exp.ty)
         cc = CallingConvention(paramtys, expr.ty)
 
-        adjusted = self.adjust_stack(out)
-
         if type(expr.ty) is ArrayResolvedType or (type(expr.ty) is TupleResolvedType and expr.ty.rank > 0):
             returnspace = self.get_resolvedtypesize(expr.ty, 0)
             out.append('sub rsp, ' + str(returnspace))
             self.stackdesc.stacksize += returnspace
             tempstack = self.stackdesc.stacksize
         # if type(expr.ty) is ArrayResolvedType:
+        adjusted = self.adjust_stack(out)
 
         for i in reversed(cc.stacklocs):
             self.gen_expr(expr.exprs[i], out)
@@ -467,27 +466,55 @@ class Function:
 
     def gen_fnpreamble(self, cmd: FnCmd, out):
         retty = type(cmd.typ)
+        returnextra = False
+        i = 0
+        f = 0
         if (retty is TupleType and len(cmd.typ.types) > 0) or retty is ArrayType:
             self.push_reg(out, 'rdi')
+            self.stackdesc.localvarsize += 8    # TODO necessary?
+            # returnextra = True
+            i = 1
+
+        intreg_names = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9']
+        loc = 0
+        for bnd in cmd.bindings:
+            bndty = type(bnd.ty)
+            if bndty in [BoolResolvedType, IntResolvedType]:
+                self.push_reg(out, intreg_names[i])
+                i += 1
+            elif bndty is FloatResolvedType:
+                out.append('sub rsp, ' + str(8))
+                self.stackdesc.stacksize += 8
+                out.append('movsd [rsp], xmm' + str(f))
+                f += 1
+            # self.stackdesc.localvarsize += 8
+            self.stackdesc.insertarg(cmd.bindings[loc].argument, cmd.bindings[loc].ty)
+            loc += 1
+
+        # #
+        # #
         #
+        # exprtys = []
+        # for binds in cmd.bindings:
+        #     exprtys.append(binds.ty)
         #
-
-        exprtys = []
-        for binds in cmd.bindings:
-            exprtys.append(binds.ty)
-
-        cc = CallingConvention(exprtys, cmd.typ)
-        for i in cc.reglocs:
-            reg = cc.regnames[i]
-            size = self.get_resolvedtypesize(cmd.bindings[i].ty, 0)
-            if reg[0] == 'r':
-                self.push_reg(out, reg)
-            else:
-                out.append('sub rsp, ' + str(size))
-                self.stackdesc.stacksize += size
-                out.append('movsd [rsp], ' + reg)
-
-            self.stackdesc.insertarg(cmd.bindings[i].argument, cmd.bindings[i].ty)
+        # tt = IntResolvedType
+        # if retty is TupleType or retty is ArrayType:
+        #     tt = TupleResolvedType
+        #
+        # cc = CallingConvention(exprtys, tt)
+        # for i in cc.reglocs:
+        #     reg = cc.regnames[i]
+        #     size = self.get_resolvedtypesize(cmd.bindings[i].ty, 0)
+        #     if reg[0] == 'r':
+        #         self.push_reg(out, reg)
+        #     else:
+        #         out.append('sub rsp, ' + str(size))
+        #         self.stackdesc.stacksize += size
+        #         out.append('movsd [rsp], ' + reg)
+        #     self.stackdesc.localvarsize += 8    # TODO necessary?
+        #
+        #     self.stackdesc.insertarg(cmd.bindings[i].argument, cmd.bindings[i].ty)
 
     def gen_fnpostamble(self, out):
         post = 'add rsp, ' + str(self.stackdesc.stacksize)
@@ -542,8 +569,10 @@ class Function:
     def gen_global_callee_save(self, out):
         out += ['push r12', 'mov r12, rbp']
         self.stackdesc.stacksize += 8
+        self.stackdesc.localvarsize += 8
 
     def gen_global_callee_unsave(self, out):
+        self.stackdesc.localvarsize -= 8
         if self.stackdesc.localvarsize > 0:
             out.append('add rsp, ' + str(self.stackdesc.localvarsize) + ' ; Local variables')
             self.stackdesc.stacksize -= self.stackdesc.localvarsize
