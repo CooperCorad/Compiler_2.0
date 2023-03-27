@@ -88,37 +88,28 @@ class Function:
         self.jumps = []
         self.stackdesc = StackDescription()
 
-    def gen_intexpr(self, expr: IntExpr):
-        out = []
+    def gen_intexpr(self, expr: IntExpr, out):
         name = self.asm.add_const(expr)
         out.append('mov rax, [rel ' + name + '] ; ' + str(expr.intVal))
         self.push_reg(out, 'rax')
-        self.code += out
 
-    def gen_floatexpr(self, expr: FloatExpr):
-        out = []
+    def gen_floatexpr(self, expr: FloatExpr, out):
         name = self.asm.add_const(expr)
         out.append('mov rax, [rel ' + name + '] ; ' + str(expr.floatVal))
         self.push_reg(out, 'rax')
-        self.code += out
 
-    def gen_trueexpr(self, expr: TrueExpr):
-        out = []
+    def gen_trueexpr(self, expr: TrueExpr, out):
         name = self.asm.add_const(expr)
         out.append('mov rax, [rel ' + name + '] ; True')
         self.push_reg(out, 'rax')
-        self.code += out
 
-    def gen_falseexpr(self, expr: TrueExpr):
-        out = []
+    def gen_falseexpr(self, expr: TrueExpr, out):
         name = self.asm.add_const(expr)
         out.append('mov rax, [rel ' + name + '] ; False')
         self.push_reg(out, 'rax')
-        self.code += out
 
-    def gen_unopexpr(self, expr: UnopExpr):
-        out = []
-        self.gen_expr(expr.expr)
+    def gen_unopexpr(self, expr: UnopExpr, out):
+        self.gen_expr(expr.expr, out)
         if type(expr.ty) is not FloatResolvedType:
             out.append('pop rax')
             self.stackdesc.stacksize -= 8
@@ -131,21 +122,19 @@ class Function:
         elif type(expr.ty) is FloatResolvedType:
             out.append('movsd xmm1, [rsp]')
             out.append('add rsp, 8')
-            self.stackdesc.stacksize += 8
+            self.stackdesc.stacksize -= 8
             out.append('pxor xmm0, xmm0')
             out.append('subsd xmm0, xmm1')
             out.append('sub rsp, 8')
-            self.stackdesc.stacksize -= 8
+            self.stackdesc.stacksize += 8
             out.append('movsd [rsp], xmm0')
             self.stackdesc.stacksize += 8
 
         self.stackdesc.stacksize += 8
-        self.code += out
 
-    def gen_binopexpr(self, expr: BinopExpr):
-        out = []
-        self.gen_expr(expr.rexpr)
-        self.gen_expr(expr.lexpr)
+    def gen_binopexpr(self, expr: BinopExpr, out):
+        self.gen_expr(expr.rexpr, out)
+        self.gen_expr(expr.lexpr, out)
 
         if type(expr.lexpr.ty) is not FloatResolvedType:
             self.pop_reg(out, 'rax')
@@ -202,10 +191,10 @@ class Function:
         else:
             out.append('movsd xmm0, [rsp]')
             out.append('add rsp, 8')
-            self.stackdesc.stacksize += 8
+            self.stackdesc.stacksize -= 8
             out.append('movsd xmm1, [rsp]')
             out.append('add rsp, 8')
-            self.stackdesc.stacksize += 8
+            self.stackdesc.stacksize -= 8
 
             op = expr.op
             if op == '+':
@@ -245,10 +234,8 @@ class Function:
                 self.push_reg(out, 'rax')
             else:
                 out.append('sub rsp, 8')
-                self.stackdesc.stacksize -= 8
+                self.stackdesc.stacksize += 8
                 out.append('movsd [rsp], xmm0')
-
-        self.code += out
 
     def get_resolvedtypesize(self, ty: ResolvedType, size: int):
         if type(ty) is TupleResolvedType:
@@ -260,8 +247,7 @@ class Function:
         else:
             return 8
 
-    def gen_tupleindexexpr(self, expr: TupleIndexExpr):
-        out = []
+    def gen_tupleindexexpr(self, expr: TupleIndexExpr, out):
 
         wholesize = self.get_resolvedtypesize(expr.varxpr.ty, 0)
         uptosize = 0
@@ -275,22 +261,18 @@ class Function:
             out.append('\tmov [rsp + ' + str(wholesize - movesize) + ' + ' + str(8 * i) + '], r10')
         out.append('add rsp, ' + str(wholesize - movesize))
 
-        self.stackdesc.stacksize += (wholesize - movesize)
-        self.code += out
+        self.stackdesc.stacksize -= (wholesize - movesize)
 
-    def gen_arrayliteralexpr(self, expr: ArrayLiteralExpr):
-        out = []
+    def gen_arrayliteralexpr(self, expr: ArrayLiteralExpr, out):
         movesize = self.get_resolvedtypesize(expr.types[0].ty, 0) * len(expr.types)
         if movesize < -pow(2, 63) or movesize > ((pow(2, 63)) - 1):
             raise AsmGenException('You cannot allocate more memory than MAX_INT (2^63 - 1)')
         out.append('mov rdi, ' + str(movesize))
 
+        # self.stackdesc.stacksize += movesize
         adjusted = self.adjust_stack(out)
-        if adjusted:
-            self.code += out
-            out = []
+        # self.stackdesc.stacksize -= movesize
         out.append('call _jpl_alloc')
-        self.stackdesc.stacksize += movesize
         if adjusted:
             self.unadjust_stack(out)
 
@@ -300,17 +282,15 @@ class Function:
             out.append('\tmov r10, [rsp + ' + increment + ']')
             out.append('\tmov [rax + ' + increment + '], r10')
         out.append('add rsp, ' + str(movesize))
+        self.stackdesc.stacksize -= movesize
         self.push_reg(out, 'rax')
         out.append('mov rax, ' + str(len(expr.types)))
         self.push_reg(out, 'rax')
 
-        self.code += out
-
-    def gen_varexpr(self, expr: VariableExpr):
-        out = []
+    def gen_varexpr(self, expr: VariableExpr, out):
         movesize = self.get_resolvedtypesize(expr.ty, 0)
         out.append('sub rsp, ' + str(movesize))
-        self.stackdesc.stacksize -= movesize
+        self.stackdesc.stacksize += movesize
         varloc = self.stackdesc.nameloc[expr.variable.variable]
         out.append('; Moving ' + str(movesize) + ' bytes from rbp - ' + str(varloc) + ' to rsp')
         for i in range(int(movesize/8)):
@@ -318,49 +298,44 @@ class Function:
             out.append('\tmov r10, [rbp - ' + str(varloc) + ' + ' + str(movesize - increment) + ']')
             out.append('\tmov [rsp + ' + str(movesize - increment) + '], r10')
 
-        self.code += out
-
-    def gen_callexpr(self, expr: CallExpr):
-        out = []
+    def gen_callexpr(self, expr: CallExpr, out):
 
         paramtys = []
         for exp in expr.exprs:
             paramtys.append(exp.ty)
-        cc = CallingConvention(paramtys, expr.ty, self.stackdesc)
+        cc = CallingConvention(paramtys, expr.ty)
 
         adjusted = self.adjust_stack(out)
-        # if adjusted:
-        #     self.c
 
-        if type(expr.ty) is TupleResolvedType:
+        if type(expr.ty) is ArrayResolvedType or (type(expr.ty) is TupleResolvedType and expr.ty.rank > 0):
             returnspace = self.get_resolvedtypesize(expr.ty, 0)
             out.append('sub rsp, ' + str(returnspace))
-            self.stackdesc.stacksize -= returnspace
+            self.stackdesc.stacksize += returnspace
             tempstack = self.stackdesc.stacksize
-            self.code += out
-            out = []
-
+        # if type(expr.ty) is ArrayResolvedType:
 
         for i in reversed(cc.stacklocs):
-            self.gen_expr(expr.exprs[i])
+            self.gen_expr(expr.exprs[i], out)
 
         pops = []
+        popadjust = 0
         for i in reversed(cc.reglocs):
             currexpr = expr.exprs[i]
             currexprty = type(currexpr.ty)
-            self.gen_expr(currexpr)
+            self.gen_expr(currexpr, out)
 
             if currexprty is IntResolvedType or currexprty is BoolResolvedType:
                 pops.insert(0, 'pop ' + cc.regnames[i])
-                self.stackdesc.stacksize -= 8
+                popadjust -= 8
             elif currexprty is FloatResolvedType:
                 pops.insert(0, 'add rsp, 8')
-                self.stackdesc.stacksize += 8
+                popadjust -= 8
                 pops.insert(0, 'movsd ' + cc.regnames[i] + ', [rsp]')
 
         out += pops
+        self.stackdesc.stacksize += popadjust
 
-        if type(expr.ty) is TupleResolvedType:
+        if type(expr.ty) is ArrayResolvedType or (type(expr.ty) is TupleResolvedType and expr.ty.rank > 0):
             out.append('lea rdi, [rsp + ' + str((self.stackdesc.stacksize - tempstack)) + ']')
 
         out.append('call _' + expr.variable.variable)
@@ -368,7 +343,7 @@ class Function:
         for i in cc.stacklocs:
             size = self.get_resolvedtypesize(expr.exprs[i].ty, 0)
             out.append('add rsp, ' + str(size))
-            self.stackdesc.stacksize += size
+            self.stackdesc.stacksize -= size
 
         if adjusted:
             self.unadjust_stack(out)
@@ -376,91 +351,71 @@ class Function:
         returnty = type(expr.ty)
         if returnty is FloatResolvedType:
             out.append('sub rsp, 8')
-            self.stackdesc.stacksize -= 8
+            self.stackdesc.stacksize += 8
             out.append('movsd [rsp], xmm0')
         elif returnty is IntResolvedType or returnty is BoolResolvedType:
             self.push_reg(out, 'rax')
         elif returnty is TupleResolvedType:
             pass
 
-        self.code += out
-
-
-    def gen_expr(self, expr : Expr):
+    def gen_expr(self, expr : Expr, out):
         if type(expr) is IntExpr:
-            return self.gen_intexpr(expr)
+            return self.gen_intexpr(expr, out)
         elif type(expr) is FloatExpr:
-            return self.gen_floatexpr(expr)
+            return self.gen_floatexpr(expr, out)
         elif type(expr) is TrueExpr:
-            return self.gen_trueexpr(expr)
+            return self.gen_trueexpr(expr, out)
         elif type(expr) is FalseExpr:
-            return self.gen_falseexpr(expr)
+            return self.gen_falseexpr(expr, out)
         elif type(expr) is UnopExpr:
-            return self.gen_unopexpr(expr)
+            return self.gen_unopexpr(expr, out)
         elif type(expr) is BinopExpr:
-            return self.gen_binopexpr(expr)
+            return self.gen_binopexpr(expr, out)
         elif type(expr) is TupleLiteralExpr:
             for typ in reversed(expr.types):
-                self.gen_expr(typ)
+                self.gen_expr(typ, out)
         elif type(expr) is TupleIndexExpr:
-            self.gen_expr(expr.varxpr)
-            self.gen_tupleindexexpr(expr)
+            self.gen_expr(expr.varxpr, out)
+            self.gen_tupleindexexpr(expr, out)
         elif type(expr) is ArrayLiteralExpr:
             for typ in reversed(expr.types):
-                self.gen_expr(typ)
-            self.gen_arrayliteralexpr(expr)
+                self.gen_expr(typ, out)
+            self.gen_arrayliteralexpr(expr, out)
         elif type(expr) is VariableExpr:
-            self.gen_varexpr(expr)
+            self.gen_varexpr(expr, out)
         elif type(expr) is CallExpr:
-            self.gen_callexpr(expr)
+            self.gen_callexpr(expr, out)
 
-    def gen_showcmd(self, cmd: ShowCmd):
-        out = []
+    def gen_showcmd(self, cmd: ShowCmd, out):
 
         stackadjust = self.get_resolvedtypesize(cmd.expr.ty, 0)
-        if type(cmd.expr.ty) is ArrayResolvedType:
-            stackadjust = (cmd.expr.ty.rank + 1) * 8
-        self.stackdesc.stacksize += stackadjust
-        adjusted = self.adjust_stack(out)
+        # if type(cmd.expr.ty) is ArrayResolvedType or type(cmd.expr.ty) is TupleResolvedType:
+        #     stackadjust = 0
         self.stackdesc.stacksize -= stackadjust
-        if adjusted:
-            self.code += out
-            out = []
-
-        self.gen_expr(cmd.expr)
+        adjusted = self.adjust_stack(out)
+        self.stackdesc.stacksize += stackadjust
+        self.gen_expr(cmd.expr, out)
         name = self.asm.add_const_string(cmd.expr.ty)
         out.append('lea rdi, [rel ' + name + '] ; ' + cmd.expr.ty.to_string())
         out.append('lea rsi, [rsp]')
         out.append('call _show')
         out.append('add rsp, ' + str(stackadjust))
-        self.stackdesc.stacksize += stackadjust
+        self.stackdesc.stacksize -= stackadjust
         if adjusted:
             self.unadjust_stack(out)
 
-        self.code += out
-
-    def gen_letcmd(self, cmd: LetCmd):
-        out = []
-
-        # TODO adjust?
-        # TODO: add to stackdescrption.addlval? might be easier idk
-        self.gen_expr(cmd.expr)
+    def gen_letcmd(self, cmd: LetCmd, out):
+        self.gen_expr(cmd.expr, out)
         self.stackdesc.insertlval(cmd.lvalue, cmd.expr.ty)
 
-        self.code += out    # TODO necessary?? + same for init <out> at all
-
-    def gen_readcmd(self, cmd: ReadCmd):
-        out = []
+    def gen_readcmd(self, cmd: ReadCmd, out):
         out.append('sub rsp, 24')
-        self.stackdesc.stacksize -= 24
-        # self.stackdesc.addargument(cmd.vararg.variable.variable, 24)
+        self.stackdesc.stacksize += 24
         imgty = ArrayResolvedType(TupleResolvedType([FloatResolvedType(), FloatResolvedType(), FloatResolvedType(), FloatResolvedType()]), 2)
         self.stackdesc.insertarg(cmd.vararg, imgty)
+
         out.append('lea rdi, [rsp]')
         adjusted = self.adjust_stack(out)
-        if adjusted:
-            self.code += out
-            out = []
 
         name = self.asm.add_const_string(cmd.filename[1:-1])
         out.append('lea rsi, [rel ' + name + '] ; ' + cmd.filename[1:-1])
@@ -468,78 +423,131 @@ class Function:
         if adjusted:
             self.unadjust_stack(out)
 
-        self.code += out
+    def gen_retstmt(self, stmt: ReturnStmt, out):
+        self.gen_expr(stmt.expr, out)
+        retty = type(stmt.expr.ty)
+        if retty is IntResolvedType:
+            self.pop_reg(out, 'rax')
+        elif retty is FloatResolvedType:
+            out.append('movsd xmm0, [rsp]')
+            out.append('add rsp, 8')
+            self.stackdesc.stacksize -= 8
+        elif retty is TupleResolvedType:
+            if stmt.expr.ty.rank == 0:
+                return
+            else:
+                out.append('mov rax, [rbp - 8] ; Address to write return value into')
+                size = self.get_resolvedtypesize(stmt.expr.ty, 0)
+                out.append('; Moving ' + str(size) + ' bytes from rsp to rax')
+                for i in reversed(range((int(size / 8)))):
+                    increment = i * 8
+                    out.append('\tmov r10, [rsp + ' + str(increment) + ']')
+                    out.append('\tmov [rax + ' + str(increment) + '], r10')
+        elif retty is ArrayResolvedType:
+            out.append('mov rax, [rbp - 8] ; Address to write return value into')
+            size = self.get_resolvedtypesize(stmt.expr.ty, 0)
+            out.append('; Moving 16 bytes from rsp to rax')
+            for i in reversed(range((int(size/8)))):
+                increment = i * 8
+                out.append('\tmov r10, [rsp + ' + str(increment) + ']')
+                out.append('\tmov [rax + ' + str(increment)  + '], r10')
 
+    def gen_letstmt(self, stmt: LetStmt, out):
+        self.gen_expr(stmt.expr, out)
+        self.stackdesc.insertlval(stmt.lval, stmt.expr.ty)
 
-    def gen_retstmt(self, stmt: ReturnStmt):
-        pass
-
-    def gen_stmts(self, stmts):
+    def gen_stmts(self, stmts, out):
         for stmt in stmts:
             stmtty = type(stmt)
             if stmtty is ReturnStmt:
-                self.gen_retstmt(stmt)
-            # elif stmtty is LetStmt:
-            #     self.gen_letstmt(stmt)
+                self.gen_retstmt(stmt, out)
+                return
+            elif stmtty is LetStmt:
+                self.gen_letstmt(stmt, out)
 
-    def gen_fnpreamble(self, binds):
-        # cc = CallingConvention()
-        pass
+    def gen_fnpreamble(self, cmd: FnCmd, out):
+        retty = type(cmd.typ)
+        if (retty is TupleType and len(cmd.typ.types) > 0) or retty is ArrayType:
+            self.push_reg(out, 'rdi')
+        #
+        #
+
+        exprtys = []
+        for binds in cmd.bindings:
+            exprtys.append(binds.ty)
+
+        cc = CallingConvention(exprtys, cmd.typ)
+        for i in cc.reglocs:
+            reg = cc.regnames[i]
+            size = self.get_resolvedtypesize(cmd.bindings[i].ty, 0)
+            if reg[0] == 'r':
+                self.push_reg(out, reg)
+            else:
+                out.append('sub rsp, ' + str(size))
+                self.stackdesc.stacksize += size
+                out.append('movsd [rsp], ' + reg)
+
+            self.stackdesc.insertarg(cmd.bindings[i].argument, cmd.bindings[i].ty)
+
+    def gen_fnpostamble(self, out):
+        post = 'add rsp, ' + str(self.stackdesc.stacksize)
+        self.stackdesc.stacksize -= self.stackdesc.stacksize
+        if self.stackdesc.localvarsize > 0:
+            post += ' ; Local variables'
+        out.append(post)
 
     def gen_fnspace(self, cmd: FnCmd):
-        self.gen_preample()
-        self.gen_fnpreamble(cmd.bindings)
+        out = []
+        self.gen_preample(out)
+        self.gen_fnpreamble(cmd, out)
 
-        self.gen_stmts(cmd.stmts)
-
-        self.gen_postamble()
+        self.gen_stmts(cmd.stmts, out)
+        self.gen_fnpostamble(out)
+        self.gen_postamble(out)
+        self.code += out
 
     def gen_fncmd(self, cmd: FnCmd):
         func = Function(self.asm, cmd.variable.variable)
         func.gen_fnspace(cmd)
         self.asm.fxns.append(func)
 
-
-    def gen_cmd_code(self):
+    def gen_cmd_code(self, out):
         for cmd in self.asm.exprTree:
             if type(cmd) is ShowCmd:
-                self.gen_showcmd(cmd)
+                self.gen_showcmd(cmd, out)
             elif type(cmd) is LetCmd:
-                self.gen_letcmd(cmd)
+                self.gen_letcmd(cmd, out)
             elif type(cmd) is ReadCmd:
-                self.gen_readcmd(cmd)
+                self.gen_readcmd(cmd, out)
             elif type(cmd) is FnCmd:
                 self.gen_fncmd(cmd)
 
-
     def gen_main(self):
-        self.gen_preample()
-        self.gen_global_callee_save()
-        self.gen_cmd_code()
-        self.gen_global_callee_unsave()
-        self.gen_postamble()
-
-    def gen_preample(self):
-        out = ['push rbp', 'mov rbp, rsp']
+        out = []
+        self.gen_preample(out)
+        self.gen_global_callee_save(out)
+        self.gen_cmd_code(out)
+        self.gen_global_callee_unsave(out)
+        self.gen_postamble(out)
         self.code += out
+
+    def gen_preample(self, out):
+        out += ['push rbp', 'mov rbp, rsp']
         self.stackdesc.stacksize = 0
 
-    def gen_postamble(self):
-        out = [ 'pop rbp', 'ret']
+    def gen_postamble(self, out):
+        out += ['pop rbp', 'ret']
         self.stackdesc.stacksize -= 8
-        self.code += out
 
-    def gen_global_callee_save(self):
-        out = ['push r12', 'mov r12, rbp']
+    def gen_global_callee_save(self, out):
+        out += ['push r12', 'mov r12, rbp']
         self.stackdesc.stacksize += 8
-        self.code += out
 
-    def gen_global_callee_unsave(self):
-        out = []
+    def gen_global_callee_unsave(self, out):
         if self.stackdesc.localvarsize > 0:
             out.append('add rsp, ' + str(self.stackdesc.localvarsize) + ' ; Local variables')
+            self.stackdesc.stacksize -= self.stackdesc.localvarsize
         self.pop_reg(out, 'r12')
-        self.code += out
 
     def to_string(self):
         string = ''
@@ -562,12 +570,12 @@ class Function:
     def adjust_stack(self, stackinfo: []):
         if self.stackdesc.stacksize % 16 != 0:
             stackinfo.append('sub rsp, 8 ; Align stack')
-            self.stackdesc.stacksize -= 8
+            self.stackdesc.stacksize += 8
             return True
         return False
 
     def unadjust_stack(self, stackinfo: []):
         stackinfo.append('add rsp, 8 ; Remove alignment')
-        self.stackdesc.stacksize += 8
+        self.stackdesc.stacksize -= 8
 
 

@@ -332,6 +332,7 @@ class TypeChecker:
                 lval, varty = self.bind_to_lval(bind, fnscope)
                 argtys.append(varty)
                 fnscope.addlval(lval, varty)
+                bind.ty = varty
 
             retty = self.type_of(cmd.typ, table)
             fninf = FunctionInfo(argtys, retty, fnscope)

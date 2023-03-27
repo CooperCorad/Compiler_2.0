@@ -43,6 +43,8 @@ class StackDescription:
         self.stacksize = 0
         self.nameloc = dict()
         self.localvarsize = 0
+        self.nameloc['args'] = -16
+        self.nameloc['argnum'] = -16
 
     def addlval(self, lval, size):
         self.localvarsize += size
@@ -91,12 +93,6 @@ class StackDescription:
         elif tyty is ArrayResolvedType:
             self.insertarg(lval.variable, ty)
 
-
-
-
-
-
-
     def addargument(self, name, size):
         self.localvarsize += size
         self.nameloc[name] = (8 + self.localvarsize)
@@ -124,7 +120,6 @@ class CallingConvention:
 
     params: []
     returnty: ResolvedType
-    stackdesc: StackDescription
 
     intreg_names: []
     intreg_c: int
@@ -135,9 +130,8 @@ class CallingConvention:
 
     returnloc: ValLoc
 
-    def __init__(self, _params: [], _return: ResolvedType, _sd: StackDescription):
+    def __init__(self, _params: [], _return: ResolvedType):
         self.params = _params
-        self.stackdesc = _sd
         self.returnty = _return
         self.reglocs = []
         self.regnames = [''] * len(_params)
@@ -150,7 +144,7 @@ class CallingConvention:
         self.calc_pos()
 
     def calc_return(self):
-        if type(self.returnty) is TupleResolvedType:
+        if type(self.returnty) is TupleResolvedType or type(self.returnty) is ArrayResolvedType:
             self.returnloc = StackVal()
             # self.reglocs.append(0)
             # self.regnames[0] = self.intreg_names[self.intreg_c]

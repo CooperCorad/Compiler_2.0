@@ -618,6 +618,7 @@ class VarBinding(Binding):
     def __init__(self, _argument : Argument, _type : Type):
         self.argument = _argument
         self.type = _type
+        self.ty = None
 
     def to_string(self):
         ret = '(VarBinding ' + self.argument.to_string() + ' ' + self.type.to_string() + ')'

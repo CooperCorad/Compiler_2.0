@@ -30,6 +30,9 @@ class Parser:
     def parse(self):
         index = 0
 
+        while self.peek_tok(index) == 'NEWLINE':
+            index += 1
+
         while True:
             if self.peek_tok(index) == 'END_OF_FILE':
                 return self.program

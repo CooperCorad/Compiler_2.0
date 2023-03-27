@@ -1,1 +1,2 @@
-show sin(cos(1.0))
+let a = 1
+show a
