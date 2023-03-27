@@ -1,7 +1,5 @@
-fn f(x : int, s: float) : {float} {
-    let a = [1, 2]
-    return {s}
+fn f(x: int, y: {int, int}) : int {
+    return y{0}
 }
 
-let y = f(1, 2.0)
-show y
+show f(1, {2, 3})
