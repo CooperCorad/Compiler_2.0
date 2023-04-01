@@ -111,13 +111,12 @@ class Function:
     def gen_unopexpr(self, expr: UnopExpr, out):
         self.gen_expr(expr.expr, out)
         if type(expr.ty) is not FloatResolvedType:
-            out.append('pop rax')
-            self.stackdesc.stacksize -= 8
+            self.pop_reg(out, 'rax')
             if expr.op == '-':
                 out.append('neg rax')
             elif expr.op == '!':
                 out.append('xor rax, 1')
-            out.append('push rax')
+            self.push_reg(out, 'rax')
 
         elif type(expr.ty) is FloatResolvedType:
             out.append('movsd xmm1, [rsp]')
@@ -128,9 +127,9 @@ class Function:
             out.append('sub rsp, 8')
             self.stackdesc.stacksize += 8
             out.append('movsd [rsp], xmm0')
-            self.stackdesc.stacksize += 8
+            # self.stackdesc.stacksize += 8
 
-        self.stackdesc.stacksize += 8
+        # self.stackdesc.stacksize += 8
 
     def gen_shortcut(self, expr: BinopExpr, out):
         self.gen_expr(expr.lexpr, out)
