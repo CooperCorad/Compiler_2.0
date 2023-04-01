@@ -68,8 +68,8 @@ class StackDescription:
             for argu in reversed(arg.arguments):
                 # self.stacksize -= 8
                 self.localvarsize += 8  # 8B int for size
-                self.nameloc[argu.variable] = (self.localvarsize)
-            self.nameloc[arg.variable.variable] = (self.localvarsize)
+                self.nameloc[argu.variable] = self.localvarsize
+            self.nameloc[arg.variable.variable] = self.localvarsize
 
     def insertlval(self, lval, ty):
         tyty = type(ty)
@@ -80,15 +80,9 @@ class StackDescription:
                 tty = ty.tys[i]
                 self.insertlval(tvar, tty)
         elif tyty is IntResolvedType or tyty is FloatResolvedType or tyty is BoolResolvedType or tyty is TupleResolvedType:
-            size = self.get_resolvedtypesize(ty, 0)
             self.insertarg(lval.variable, ty)
         elif tyty is ArrayResolvedType:
             self.insertarg(lval.variable, ty)
-
-    def addargument(self, name, size):
-        self.localvarsize += size
-        self.stacksize -= size
-        self.nameloc[name] = (self.localvarsize)
 
 
 class ValLoc:

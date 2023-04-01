@@ -132,7 +132,26 @@ class Function:
 
         self.stackdesc.stacksize += 8
 
+    def gen_shortcut(self, expr: BinopExpr, out):
+        self.gen_expr(expr.lexpr, out)
+        self.pop_reg(out, 'rax')
+        out.append('cmp rax, 0')
+
+        shortjump = str(self.asm.add_jump())
+        if expr.op == '||':
+            out.append('jne .jump' + shortjump)
+        else:
+            out.append('je .jump' + shortjump)
+        self.gen_expr(expr.rexpr, out)
+        self.pop_reg(out, 'rax')
+        out.append('.jump' + shortjump + ':')
+        self.push_reg(out, 'rax')
+
     def gen_binopexpr(self, expr: BinopExpr, out):
+        if expr.op in ['&&', '||']:
+            self.gen_shortcut(expr, out)
+            return
+
         self.gen_expr(expr.rexpr, out)
         self.gen_expr(expr.lexpr, out)
 
@@ -357,6 +376,235 @@ class Function:
         elif returnty is TupleResolvedType:
             pass
 
+    def gen_ifexpr(self, expr: IfExpr, out):
+        self.gen_expr(expr.ifexp, out)
+        self.pop_reg(out, 'rax')
+        out.append('cmp rax, 0')
+        elsejmp = self.asm.add_jump()
+        out.append('je .jump' + str(elsejmp))
+        self.gen_expr(expr.thenexp, out)
+        returnflowjmp = self.asm.add_jump()
+        out.append('jmp .jump' + str(returnflowjmp))
+        out.append('.jump' + str(elsejmp) + ':')
+        self.stackdesc.stacksize -= self.get_resolvedtypesize(expr.ty, 0)
+        # TODO ^ here so the production of else is not affected by then? ^
+        self.gen_expr(expr.elseexp, out)
+        out.append('.jump' + str(returnflowjmp) + ':')
+
+    def get_arrindex_loc(self, expr: ArrayIndexExpr):
+        if type(expr.expr) is ArrayLiteralExpr:
+            return 0
+        elif type(expr.expr) is VariableExpr:
+            return self.stackdesc.nameloc[expr.expr.variable.variable]
+        elif type(expr.expr) is ArrayIndexExpr:
+            return self.get_arrindex_loc(expr.expr)
+
+    def gen_arrindexexpr(self, expr: ArrayIndexExpr, out):
+        if type(expr.expr) is not VariableExpr:
+            self.gen_expr(expr.expr, out)
+        arrsize = self.get_resolvedtypesize(expr.expr.ty, 0)
+
+
+        arrloc = self.get_arrindex_loc(expr)
+        if type(expr.expr) is not ArrayIndexExpr:
+            out.append('sub rsp, ' + str(arrsize))
+            self.stackdesc.stacksize += arrsize
+            out.append('; Moving ' + str(arrsize) + ' bytes from rbp - ' + str(arrloc) + ' to rsp')
+            for i in reversed(range(int(arrsize/8))):
+                increment = str(i * 8)
+                out.append('\tmov r10, [rbp - ' + str(arrloc) + ' + ' + increment + ']')
+                out.append('\tmov [rsp + ' + increment + '], r10')
+
+        for exp in reversed(expr.exprs):
+            self.gen_expr(exp, out)
+
+        indexcount = len(expr.exprs)
+
+        for i in range(indexcount):
+            offset = (i * 8)
+            out.append('mov rax, [rsp + ' + str(offset) + ']')
+            out.append('cmp rax, 0')
+            negindexjmp = str(self.asm.add_jump())
+            out.append('jge .jump' + negindexjmp)
+
+            adjusted = self.adjust_stack(out)
+            name = self.asm.add_const_string('negative array index')
+            out.append('lea rdi, [rel ' + name + '] ; negative array index')
+            out.append('call _fail_assertion')
+            if adjusted:
+                self.unadjust_stack(out)
+
+            out.append('.jump' + negindexjmp + ':')
+            out.append('cmp rax, [rsp + ' + str(offset + 8 * indexcount) + ']')
+            # out.append('cmp rax, 0')
+            outofboundsjump = str(self.asm.add_jump())
+            out.append('jl .jump' + outofboundsjump)
+            adjusted = self.adjust_stack(out)
+            name = self.asm.add_const_string('index too large')
+            out.append('lea rdi, [rel ' + name + '] ; index too large')
+            out.append('call _fail_assertion')
+            if adjusted:
+                self.unadjust_stack(out)
+
+            out.append('.jump' + outofboundsjump + ':')
+
+        out.append('mov rax, 0')
+
+        for i in range(indexcount):
+            offset = i * 8
+            out.append('imul rax, [rsp + ' + str(offset + (indexcount * 8)) + '] ; No overflow if indices in bounds')
+            out.append('add rax, [rsp + ' + str(offset) + ']')
+
+        sizeofitems = self.get_resolvedtypesize(expr.ty, 0)
+        out.append('imul rax, ' + str(sizeofitems))   # TODO what is this?
+        out.append('add rax, [rsp + ' + str(arrsize - 8 + indexcount * 8) + ']')
+
+        for i in range(indexcount):
+            out.append('add rsp, 8')
+            self.stackdesc.stacksize -= 8
+        out.append('add rsp, ' + str(arrsize))
+        self.stackdesc.stacksize -= arrsize
+        out.append('sub rsp, ' + str(sizeofitems))    # TODO same as 'what is this?'
+        self.stackdesc.stacksize += sizeofitems
+
+        out.append('; Moving ' + str(sizeofitems) + ' bytes from rax to rsp')
+        for i in reversed(range(int(sizeofitems/8))):
+            offset = str(i * 8)
+            out.append('\tmov r10, [rax + ' + offset + ']')
+            out.append('\tmov [rsp + ' + offset + '], r10')
+
+    def gen_loopexpr(self, expr, out):
+        sumloop = False
+        if type(expr) is SumLoopExpr:
+            sumloop = True
+
+        out.append('sub rsp, 8')
+        self.stackdesc.stacksize += 8
+
+        numbinds = len(expr.pairs)
+
+        # Same for any loop
+        for pair in reversed(expr.pairs):
+            self.gen_expr(pair[1], out)
+            out.append('mov rax, [rsp]')
+            out.append('cmp rax, 0')
+            positivejump = str(self.asm.add_jump())
+            out.append('jg .jump' + positivejump)
+            adjusted = self.adjust_stack(out)
+            error = 'non-positive loop bound'
+            name = self.asm.add_const_string(error)
+            out.append('lea rdi, [rel ' + name + '] ; ' + error)
+            out.append('call _fail_assertion')
+            if adjusted:
+                self.unadjust_stack(out)
+            out.append('.jump' + positivejump + ':')
+        # ~~ end ~~
+
+        if sumloop:
+            out.append('mov rax, 0')
+            out.append('mov [rsp + ' + str(8 * numbinds) + '], rax')
+        else:
+            out.append('; Computing total size of heap memory to allocate')
+            elmtsize = self.get_resolvedtypesize(expr.expr.ty, 0)
+            out.append('mov rdi, 8 ; sizeof int')
+
+            error = 'overflow computing array size'
+            name = self.asm.add_const_string(error)
+
+            for i in range(numbinds):
+                increment = str(i * 8)
+                out.append('imul rdi, [rsp + 0 + ' + increment + ']')
+                nooverflowjmp = str(self.asm.add_jump())
+                out.append('jno .jump' + nooverflowjmp)
+                adjusted = self.adjust_stack(out)
+                out.append('lea rdi, [rel ' + name + '] ; ' + error)
+                out.append('call _fail_assertion')
+                if adjusted:
+                    self.unadjust_stack(out)
+                out.append('.jump' + nooverflowjmp + ':')
+
+            adjusted = self.adjust_stack(out)
+            out.append('call _jpl_alloc ; Put pointer to heap space in RAX')
+            if adjusted:
+                self.unadjust_stack(out)
+
+            out.append('mov [rsp + ' + str(8 * numbinds) + '], rax ; Move to pre-allocated space')
+
+        # Same for any loop
+        for i in reversed(range(numbinds)):
+            out.append('mov rax, 0')
+            self.push_reg(out, 'rax')
+            name = expr.pairs[i][0].variable
+            self.stackdesc.nameloc[name] = self.stackdesc.stacksize
+        # ~~ end ~~
+
+        loopbodjump = str(self.asm.add_jump())
+        out.append('.jump' + loopbodjump + ': ; Begin body of loop')
+
+        self.gen_expr(expr.expr, out)
+
+        if sumloop:
+            self.pop_reg(out, 'rax')
+            out.append('add [rsp + ' + str(16 * numbinds) + '], rax ; Add loop body to sum')
+        else:
+            out.append('; Index to store in')
+            out.append('mov rax, 0')
+
+            for i in range(numbinds):
+                boundoffset = str(((i + numbinds) * 8) + elmtsize)
+                increment = str((i * 8) + elmtsize)
+                out.append('imul rax, [rsp + ' + boundoffset + '] ; No overflow if indices in bounds')
+                out.append('add rax, [rsp + ' + increment + ']')
+
+            out.append('imul rax, ' + str(elmtsize))
+            out.append('add rax, [rsp + ' + str((16 * numbinds) + elmtsize) + ']')
+
+            out.append('; Move body (' + str(elmtsize) + ' bytes) to index')
+            out.append('; Moving ' + str(elmtsize) + ' bytes from rsp to rax')
+            for i in reversed(range(int(elmtsize/8))):
+                increment = str(i * 8)
+                out.append('\tmov r10, [rsp + ' + increment + ']')
+                out.append('\tmov [rax + ' + increment + '], r10')
+
+            out.append('add rsp, ' + str(elmtsize))
+            self.stackdesc.stacksize -= elmtsize
+
+        # Here on same for any loop
+        out.append('; Increment ' + expr.pairs[numbinds - 1][0].variable)
+        out.append('add qword [rsp + ' + str(8 * (numbinds - 1)) + '], 1')
+
+        for i in reversed(range(1, numbinds)):
+            varname = expr.pairs[i][0].variable
+            varoffset = str(i * 8)
+            boundoffset = str((i + numbinds) * 8)
+            out.append('; Compare ' + varname + ' to its bound')
+            out.append('mov rax, [rsp + ' + varoffset + ']')
+            out.append('cmp rax, [rsp + ' + boundoffset + ']')
+            out.append('jl .jump' + loopbodjump + ' ; If ' + varname + ' < bound, next iter')
+            out.append('mov qword [rsp + ' + varoffset + '], 0 ; ' + varname + ' = 0')
+            out.append('add qword [rsp + ' + str((i - 1) * 8) + '], 1 ; ' + expr.pairs[i - 1][0].variable + '++')
+
+        lastvarname = expr.pairs[0][0].variable
+        out.append('; Compare ' + lastvarname + ' to its bound')
+        out.append('mov rax, [rsp + 0]')
+        out.append('cmp rax, [rsp + ' + str(numbinds * 8) + ']')
+        out.append('jl .jump' + loopbodjump + ' ; If ' + lastvarname + ' < bound, next iter')
+        out.append('; End body of loop')
+
+        out.append('; Free all loop variables')
+        out.append('add rsp, ' + str(numbinds * 8))
+        self.stackdesc.stacksize -= numbinds * 8
+        out.append('; Free all loop bounds')
+        if sumloop:
+            out.append('add rsp, ' + str(numbinds * 8))
+            self.stackdesc.stacksize -= numbinds * 8
+            out.append('; sum left on stack')
+
+        # self.stackdesc.localvarsize = localvarelim
+
+
+
+
     def gen_expr(self, expr : Expr, out):
         if type(expr) is IntExpr:
             return self.gen_intexpr(expr, out)
@@ -384,6 +632,12 @@ class Function:
             self.gen_varexpr(expr, out)
         elif type(expr) is CallExpr:
             self.gen_callexpr(expr, out)
+        elif type(expr) is IfExpr:
+            self.gen_ifexpr(expr, out)
+        elif type(expr) is ArrayIndexExpr:
+            self.gen_arrindexexpr(expr, out)
+        elif type(expr) is SumLoopExpr or type(expr) is ArrayLoopExpr:
+            self.gen_loopexpr(expr, out)
 
     def gen_showcmd(self, cmd: ShowCmd, out):
 
@@ -471,24 +725,34 @@ class Function:
         f = 0
         if (retty is TupleType and len(cmd.typ.types) > 0) or retty is ArrayType:
             self.push_reg(out, 'rdi')
-            self.stackdesc.localvarsize += 8    # TODO necessary?
+            self.stackdesc.localvarsize += 8  # TODO necessary?
             # returnextra = True
             i = 1
 
         intreg_names = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9']
         loc = 0
+        stackpushsize = -8
         for bnd in cmd.bindings:
             bndty = type(bnd.ty)
             if bndty in [BoolResolvedType, IntResolvedType]:
                 self.push_reg(out, intreg_names[i])
                 i += 1
+                self.stackdesc.insertarg(cmd.bindings[loc].argument, cmd.bindings[loc].ty)
+
             elif bndty is FloatResolvedType:
                 out.append('sub rsp, ' + str(8))
                 self.stackdesc.stacksize += 8
                 out.append('movsd [rsp], xmm' + str(f))
                 f += 1
+                self.stackdesc.insertarg(cmd.bindings[loc].argument, cmd.bindings[loc].ty)
+
             # self.stackdesc.localvarsize += 8
-            self.stackdesc.insertarg(cmd.bindings[loc].argument, cmd.bindings[loc].ty)
+            elif bndty is TupleResolvedType:
+                size = self.get_resolvedtypesize(bndty, 0)
+                stackpushsize -= size
+                self.stackdesc.nameloc[cmd.bindings[loc].argument.variable.variable] = stackpushsize
+                # self.stackdesc
+
             loc += 1
 
         # #
