@@ -382,8 +382,8 @@ class Function:
         out.append('cmp rax, 0')
         elsejmp = self.asm.add_jump()
         out.append('je .jump' + str(elsejmp))
-        self.gen_expr(expr.thenexp, out)
         returnflowjmp = self.asm.add_jump()
+        self.gen_expr(expr.thenexp, out)
         out.append('jmp .jump' + str(returnflowjmp))
         out.append('.jump' + str(elsejmp) + ':')
         self.stackdesc.stacksize -= self.get_resolvedtypesize(expr.ty, 0)
@@ -406,7 +406,7 @@ class Function:
 
 
         arrloc = self.get_arrindex_loc(expr)
-        if type(expr.expr) is not ArrayIndexExpr:
+        if type(expr.expr) is not ArrayIndexExpr and arrloc != 0 and arrloc is not None:
             out.append('sub rsp, ' + str(arrsize))
             self.stackdesc.stacksize += arrsize
             out.append('; Moving ' + str(arrsize) + ' bytes from rbp - ' + str(arrloc) + ' to rsp')
@@ -506,7 +506,7 @@ class Function:
         else:
             out.append('; Computing total size of heap memory to allocate')
             elmtsize = self.get_resolvedtypesize(expr.expr.ty, 0)
-            out.append('mov rdi, 8 ; sizeof int')
+            out.append('mov rdi, ' + str(elmtsize) + ' ; sizeof ' + expr.expr.ty.to_string())
 
             error = 'overflow computing array size'
             name = self.asm.add_const_string(error)
@@ -544,8 +544,16 @@ class Function:
         self.gen_expr(expr.expr, out)
 
         if sumloop:
-            self.pop_reg(out, 'rax')
-            out.append('add [rsp + ' + str(16 * numbinds) + '], rax ; Add loop body to sum')
+            if type(expr.ty) is not FloatResolvedType:
+                self.pop_reg(out, 'rax')
+                out.append('add [rsp + ' + str(16 * numbinds) + '], rax ; Add loop body to sum')
+            else:
+                sumsize = str(16 * numbinds)
+                out.append('movsd xmm0, [rsp]')
+                out.append('add rsp, 8')
+                self.stackdesc.stacksize -= 8
+                out.append('addsd xmm0, [rsp + ' + sumsize + '] ; Load sum')
+                out.append('movsd [rsp + ' + sumsize + '], xmm0 ; Save sum')
         else:
             out.append('; Index to store in')
             out.append('mov rax, 0')
