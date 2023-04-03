@@ -645,6 +645,7 @@ class Function:
             self.gen_arrindexexpr(expr, out)
         elif type(expr) is SumLoopExpr or type(expr) is ArrayLoopExpr:
             self.gen_loopexpr(expr, out)
+        # elif type(expr) is AssertCmd
 
     def gen_showcmd(self, cmd: ShowCmd, out):
 
@@ -809,8 +810,82 @@ class Function:
         func.gen_fnspace(cmd)
         self.asm.fxns.append(func)
 
-    def gen_cmd_code(self, out):
-        for cmd in self.asm.exprTree:
+    def gen_assertcmd(self, cmd: AssertCmd, out: []):
+        self.gen_expr(cmd.expr, out)
+        self.pop_reg(out, 'rax')
+        out.append('cmp rax, 0')
+        nofailjump = str(self.asm.add_jump())
+        out.append('jne .jump' + nofailjump)
+        adjusted = self.adjust_stack(out)
+        name = self.asm.add_const_string(cmd.string[1:-1])
+        out.append('lea rdi, [rel ' + name + '] ; ' + cmd.string[1:-1])
+        out.append('call _fail_assertion')
+        if adjusted:
+            self.unadjust_stack(out)
+        out.append('.jump' + nofailjump + ':')
+
+    def gen_printcmd(self, cmd: PrintCmd, out: []):
+        adjusted = self.adjust_stack(out)
+        name = self.asm.add_const_string(cmd.string[1:-1])
+        out.append('lea rdi, [rel ' + name + '] ; ' + cmd.string[1:-1])
+        out.append('call _print')
+        if adjusted:
+            self.unadjust_stack(out)
+
+    def gen_writecmd(self, cmd: WriteCmd, out: []):
+        self.stackdesc.stacksize -= 24
+        adjusted = self.adjust_stack(out)
+        self.stackdesc.stacksize += 24
+        self.gen_expr(cmd.expr, out)
+        name = self.asm.add_const_string(cmd.filename[1:-1])
+        out.append('lea rdi, [rel ' + name + '] ; ' + cmd.filename[1:-1])
+        out.append('call _write_image')
+        out.append('add rsp, 24')
+        self.stackdesc.stacksize -= 24
+        if adjusted:
+            self.unadjust_stack(out)
+
+    def gen_timecall(self, out: []):
+        adjusted = self.adjust_stack(out)
+        out.append('call _get_time')
+        if adjusted:
+            self.unadjust_stack(out)
+        out.append('sub rsp, 8')
+        self.stackdesc.stacksize += 8
+        out.append('movsd [rsp], xmm0')
+
+    def gen_timecmd(self, cmd: TimeCmd, out: [], i: int):
+        self.stackdesc.localvarsize += 8
+        self.gen_timecall(out)
+        ctr = cmd
+        x = 0
+        while type(ctr.cmd) is TimeCmd:
+            ctr = ctr.cmd
+            x += 8
+        if type(ctr.cmd) not in [ShowCmd, TypeCmd, WriteCmd, AssertCmd, PrintCmd, ShowCmd]:
+            x += self.get_resolvedtypesize(ctr.cmd.expr.ty, 0)
+
+        if type(cmd.cmd) is TimeCmd:
+            self.gen_timecmd(cmd.cmd, out, x)
+        else:
+            self.gen_cmd_code([cmd.cmd], out)
+        self.gen_timecall(out)
+        if i == 0:
+            i = x + 8
+
+        out.append('movsd xmm0, [rsp]')
+        out.append('add rsp, 8')
+        self.stackdesc.stacksize -= 8
+        out.append('movsd xmm1, [rsp + ' + str(i - 8) + ']')
+        out.append('subsd xmm0, xmm1')
+        adjusted = self.adjust_stack(out)
+        out.append('call _print_time')
+        if adjusted:
+            self.unadjust_stack(out)
+        # out.append('\n\n')
+
+    def gen_cmd_code(self, tree, out):
+        for cmd in tree:
             if type(cmd) is ShowCmd:
                 self.gen_showcmd(cmd, out)
             elif type(cmd) is LetCmd:
@@ -819,12 +894,20 @@ class Function:
                 self.gen_readcmd(cmd, out)
             elif type(cmd) is FnCmd:
                 self.gen_fncmd(cmd)
+            elif type(cmd) is AssertCmd:
+                self.gen_assertcmd(cmd, out)
+            elif type(cmd) is PrintCmd:
+                self.gen_printcmd(cmd, out)
+            elif type(cmd) is WriteCmd:
+                self.gen_writecmd(cmd, out)
+            elif type(cmd) is TimeCmd:
+                self.gen_timecmd(cmd, out, 0)
 
     def gen_main(self):
         out = []
         self.gen_preample(out)
         self.gen_global_callee_save(out)
-        self.gen_cmd_code(out)
+        self.gen_cmd_code(self.asm.exprTree, out)
         self.gen_global_callee_unsave(out)
         self.gen_postamble(out)
         self.code += out
