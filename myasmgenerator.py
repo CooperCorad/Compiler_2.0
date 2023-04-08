@@ -176,9 +176,12 @@ class Function:
 
         if self.asm.oplvl > 0 and type(expr.lexpr) is IntExpr and \
                 expr.op == '*' and self.is2pow(expr.lexpr.intVal):
+            shlval = self.get2pow(expr.lexpr.intVal)
             self.gen_expr(expr.rexpr, out)
+            if shlval == '0':
+                return
             self.pop_reg(out, 'rax')
-            out.append('shl rax, ' + self.get2pow(expr.lexpr.intVal))
+            out.append('shl rax, ' + shlval)
             self.push_reg(out, 'rax')
             return
         if self.asm.oplvl > 0 and type(expr.rexpr) is IntExpr and \
@@ -520,6 +523,7 @@ class Function:
             out.append('shl rax, ' + self.get2pow(sizeofitems))
         else:
             out.append('imul rax, ' + str(sizeofitems))  # TODO what is this?
+
         if self.asm.oplvl < 1:
             out.append('add rax, [rsp + ' + str(arrsize - 8 + indexcount * 8) + ']')
             for i in range(indexcount):
@@ -527,11 +531,10 @@ class Function:
                 self.stackdesc.stacksize -= 8
             out.append('add rsp, ' + str(arrsize))
             self.stackdesc.stacksize -= arrsize
-
         else:
             out.append('add rax, [rsp + ' + str(gap + arrsize - 8) + ']')
-            out.append('add rsp, ' + str(gap - 8))
-            self.stackdesc.stacksize -= (gap - 8)
+            out.append('add rsp, ' + str(8 * len(expr.exprs)))
+            self.stackdesc.stacksize -= (8 * len(expr.exprs))
         # out.append('add rsp, ' + str(arrsize))
         # self.stackdesc.stacksize -= arrsize
         out.append('sub rsp, ' + str(sizeofitems))  # TODO same as 'what is this?'
@@ -628,7 +631,7 @@ class Function:
             out.append('; Index to store in')
 
             if self.asm.oplvl > 0:
-                out.append('mov rax, [rsp + 8]')
+                out.append('mov rax, [rsp + ' + str(self.get_resolvedtypesize(expr.expr.ty, 0)) + ']')
                 rng = range(1, numbinds)
             else:
                 out.append('mov rax, 0')
@@ -638,8 +641,13 @@ class Function:
                 boundoffset = str(((i + numbinds) * 8) + elmtsize)
                 increment = str((i * 8) + elmtsize)
 
-                if self.asm.oplvl > 0 and self.intsubcheck(expr.pairs[i][1].intVal):
-                    out.append('imul rax, ' + str(expr.pairs[i][1].intVal))
+                if self.asm.oplvl > 0 and type(expr.pairs[i][1]) is IntExpr:
+                    if self.is2pow(expr.pairs[i][1].intVal):
+                        out.append('shl rax, ' + str(self.get2pow(expr.pairs[i][1].intVal)))
+                    elif self.intsubcheck(expr.pairs[i][1].intVal):
+                        out.append('imul rax, ' + str(expr.pairs[i][1].intVal))
+                    else:
+                        out.append('imul rax, [rsp + ' + boundoffset + '] ; No overflow if indices in bounds')
                 else:
                     out.append('imul rax, [rsp + ' + boundoffset + '] ; No overflow if indices in bounds')
                 out.append('add rax, [rsp + ' + increment + ']')
