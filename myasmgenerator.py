@@ -1,3 +1,5 @@
+import math
+
 from asmgenheader import *
 from parserheader import *
 
@@ -16,6 +18,7 @@ class AsmGenerator:
         self.links.append(ref_header)
         self.fxns = []
         self.consts = {}
+        self.oplvl = 0
 
     def generate_code(self):
 
@@ -77,21 +80,27 @@ class AsmGenerator:
 
 class Function:
     stackdesc: StackDescription
-    code : [str]
-    name : str
+    code: [str]
+    name: str
     jumps: [str]
 
-    def __init__(self, _asm, _name : str):
+    def __init__(self, _asm, _name: str):
         self.asm = _asm
         self.code = []
         self.name = _name + ':\n_' + _name + ':\n'
         self.jumps = []
         self.stackdesc = StackDescription()
 
+    def intsubcheck(self, x: int):
+        return x & ((1 << 31) - 1) == x
+
     def gen_intexpr(self, expr: IntExpr, out):
-        name = self.asm.add_const(expr)
-        out.append('mov rax, [rel ' + name + '] ; ' + str(expr.intVal))
-        self.push_reg(out, 'rax')
+        if self.asm.oplvl > 0 and self.intsubcheck(expr.intVal):
+            self.push_reg(out, "qword " + str(expr.intVal))
+        else:
+            name = self.asm.add_const(expr)
+            out.append('mov rax, [rel ' + name + '] ; ' + str(expr.intVal))
+            self.push_reg(out, 'rax')
 
     def gen_floatexpr(self, expr: FloatExpr, out):
         name = self.asm.add_const(expr)
@@ -99,14 +108,20 @@ class Function:
         self.push_reg(out, 'rax')
 
     def gen_trueexpr(self, expr: TrueExpr, out):
-        name = self.asm.add_const(expr)
-        out.append('mov rax, [rel ' + name + '] ; True')
-        self.push_reg(out, 'rax')
+        if self.asm.oplvl > 0:
+            self.push_reg(out, "qword 1")
+        else:
+            name = self.asm.add_const(expr)
+            out.append('mov rax, [rel ' + name + '] ; True')
+            self.push_reg(out, 'rax')
 
     def gen_falseexpr(self, expr: TrueExpr, out):
-        name = self.asm.add_const(expr)
-        out.append('mov rax, [rel ' + name + '] ; False')
-        self.push_reg(out, 'rax')
+        if self.asm.oplvl > 0:
+            self.push_reg(out, "qword 0")
+        else:
+            name = self.asm.add_const(expr)
+            out.append('mov rax, [rel ' + name + '] ; False')
+            self.push_reg(out, 'rax')
 
     def gen_unopexpr(self, expr: UnopExpr, out):
         self.gen_expr(expr.expr, out)
@@ -146,9 +161,32 @@ class Function:
         out.append('.jump' + shortjump + ':')
         self.push_reg(out, 'rax')
 
+    def is2pow(self, x: int):
+        if x <= 0:
+            return false
+        return x >= 0 and x & (x - 1) == 0
+
+    def get2pow(self, x: int):
+        return str(int(math.log2(x)))
+
     def gen_binopexpr(self, expr: BinopExpr, out):
         if expr.op in ['&&', '||']:
             self.gen_shortcut(expr, out)
+            return
+
+        if self.asm.oplvl > 0 and type(expr.lexpr) is IntExpr and \
+                expr.op == '*' and self.is2pow(expr.lexpr.intVal):
+            self.gen_expr(expr.rexpr, out)
+            self.pop_reg(out, 'rax')
+            out.append('shl rax, ' + self.get2pow(expr.lexpr.intVal))
+            self.push_reg(out, 'rax')
+            return
+        if self.asm.oplvl > 0 and type(expr.rexpr) is IntExpr and \
+                expr.op == '*' and self.is2pow(expr.rexpr.intVal):
+            self.gen_expr(expr.lexpr, out)
+            self.pop_reg(out, 'rax')
+            out.append('shl rax, ' + self.get2pow(expr.rexpr.intVal))
+            self.push_reg(out, 'rax')
             return
 
         self.gen_expr(expr.rexpr, out)
@@ -273,8 +311,9 @@ class Function:
             uptosize += self.get_resolvedtypesize(expr.varxpr.ty.tys[i], 0)
         movesize = self.get_resolvedtypesize(expr.varxpr.ty.tys[expr.index], 0)
 
-        out.append('; Moving ' + str(movesize) + ' bytes from rsp + ' + str(uptosize) + ' to rsp + ' + str(wholesize - movesize))
-        for i in reversed(range(int(movesize/8))):
+        out.append('; Moving ' + str(movesize) + ' bytes from rsp + ' + str(uptosize) + ' to rsp + ' + str(
+            wholesize - movesize))
+        for i in reversed(range(int(movesize / 8))):
             out.append('\tmov r10, [rsp + ' + str(uptosize) + ' + ' + str(8 * i) + ']')
             out.append('\tmov [rsp + ' + str(wholesize - movesize) + ' + ' + str(8 * i) + '], r10')
         out.append('add rsp, ' + str(wholesize - movesize))
@@ -295,7 +334,7 @@ class Function:
             self.unadjust_stack(out)
 
         out.append('; Moving ' + str(movesize) + ' bytes from rsp to rax')
-        for i in reversed(range(int(movesize/8))):
+        for i in reversed(range(int(movesize / 8))):
             increment = str(i * 8)
             out.append('\tmov r10, [rsp + ' + increment + ']')
             out.append('\tmov [rax + ' + increment + '], r10')
@@ -311,7 +350,7 @@ class Function:
         self.stackdesc.stacksize += movesize
         varloc = self.stackdesc.nameloc[expr.variable.variable]
         out.append('; Moving ' + str(movesize) + ' bytes from rbp - ' + str(varloc) + ' to rsp')
-        for i in range(int(movesize/8)):
+        for i in range(int(movesize / 8)):
             increment = (i + 1) * 8
             out.append('\tmov r10, [rbp - ' + str(varloc) + ' + ' + str(movesize - increment) + ']')
             out.append('\tmov [rsp + ' + str(movesize - increment) + '], r10')
@@ -377,6 +416,12 @@ class Function:
 
     def gen_ifexpr(self, expr: IfExpr, out):
         self.gen_expr(expr.ifexp, out)
+
+        if self.asm.oplvl > 0 and \
+                type(expr.thenexp) is IntExpr and expr.thenexp.intVal == 1 and \
+                type(expr.elseexp) is IntExpr and expr.elseexp.intVal == 0:
+            return
+
         self.pop_reg(out, 'rax')
         out.append('cmp rax, 0')
         elsejmp = self.asm.add_jump()
@@ -399,17 +444,21 @@ class Function:
             return self.get_arrindex_loc(expr.expr)
 
     def gen_arrindexexpr(self, expr: ArrayIndexExpr, out):
+        if self.asm.oplvl > 0:  # TODO AND LOCAL VAR
+            gap = self.stackdesc.stacksize - self.stackdesc.nameloc[expr.expr.variable.variable] + (8 * len(expr.exprs))
+
         if type(expr.expr) is not VariableExpr:
             self.gen_expr(expr.expr, out)
         arrsize = self.get_resolvedtypesize(expr.expr.ty, 0)
 
-
         arrloc = self.get_arrindex_loc(expr)
-        if type(expr.expr) is not ArrayIndexExpr and arrloc != 0 and arrloc is not None:
+        if type(expr.expr) is not ArrayIndexExpr and \
+                arrloc != 0 and arrloc is not None and \
+                self.asm.oplvl < 1:
             out.append('sub rsp, ' + str(arrsize))
             self.stackdesc.stacksize += arrsize
             out.append('; Moving ' + str(arrsize) + ' bytes from rbp - ' + str(arrloc) + ' to rsp')
-            for i in reversed(range(int(arrsize/8))):
+            for i in reversed(range(int(arrsize / 8))):
                 increment = str(i * 8)
                 out.append('\tmov r10, [rbp - ' + str(arrloc) + ' + ' + increment + ']')
                 out.append('\tmov [rsp + ' + increment + '], r10')
@@ -434,7 +483,10 @@ class Function:
                 self.unadjust_stack(out)
 
             out.append('.jump' + negindexjmp + ':')
-            out.append('cmp rax, [rsp + ' + str(offset + 8 * indexcount) + ']')
+            if self.asm.oplvl > 0:
+                out.append('cmp rax, [rsp + ' + str(gap + 8 * i) + ']')
+            else:
+                out.append('cmp rax, [rsp + ' + str(offset + 8 * indexcount) + ']')
             # out.append('cmp rax, 0')
             outofboundsjump = str(self.asm.add_jump())
             out.append('jl .jump' + outofboundsjump)
@@ -447,27 +499,46 @@ class Function:
 
             out.append('.jump' + outofboundsjump + ':')
 
-        out.append('mov rax, 0')
+        rng = range(indexcount)
+        if self.asm.oplvl > 0:
+            out.append('mov rax, [rsp + 0]')
+            rng = range(1, indexcount)
+        else:
+            out.append('mov rax, 0')
 
-        for i in range(indexcount):
+        for i in rng:
             offset = i * 8
-            out.append('imul rax, [rsp + ' + str(offset + (indexcount * 8)) + '] ; No overflow if indices in bounds')
+            if self.asm.oplvl > 0:
+                out.append('imul rax, [rsp + ' + str(gap + offset) + ']')
+                # out.append('add rax, [rsp + ' + str(gap) + ']')
+            else:
+                out.append('imul rax, [rsp + ' + str(offset + (indexcount * 8)) + '] ; No overflow if indices in bounds')
             out.append('add rax, [rsp + ' + str(offset) + ']')
 
         sizeofitems = self.get_resolvedtypesize(expr.ty, 0)
-        out.append('imul rax, ' + str(sizeofitems))   # TODO what is this?
-        out.append('add rax, [rsp + ' + str(arrsize - 8 + indexcount * 8) + ']')
+        if self.asm.oplvl > 0 and self.is2pow(sizeofitems):
+            out.append('shl rax, ' + self.get2pow(sizeofitems))
+        else:
+            out.append('imul rax, ' + str(sizeofitems))  # TODO what is this?
+        if self.asm.oplvl < 1:
+            out.append('add rax, [rsp + ' + str(arrsize - 8 + indexcount * 8) + ']')
+            for i in range(indexcount):
+                out.append('add rsp, 8')
+                self.stackdesc.stacksize -= 8
+            out.append('add rsp, ' + str(arrsize))
+            self.stackdesc.stacksize -= arrsize
 
-        for i in range(indexcount):
-            out.append('add rsp, 8')
-            self.stackdesc.stacksize -= 8
-        out.append('add rsp, ' + str(arrsize))
-        self.stackdesc.stacksize -= arrsize
-        out.append('sub rsp, ' + str(sizeofitems))    # TODO same as 'what is this?'
+        else:
+            out.append('add rax, [rsp + ' + str(gap + arrsize - 8) + ']')
+            out.append('add rsp, ' + str(gap - 8))
+            self.stackdesc.stacksize -= (gap - 8)
+        # out.append('add rsp, ' + str(arrsize))
+        # self.stackdesc.stacksize -= arrsize
+        out.append('sub rsp, ' + str(sizeofitems))  # TODO same as 'what is this?'
         self.stackdesc.stacksize += sizeofitems
 
         out.append('; Moving ' + str(sizeofitems) + ' bytes from rax to rsp')
-        for i in reversed(range(int(sizeofitems/8))):
+        for i in reversed(range(int(sizeofitems / 8))):
             offset = str(i * 8)
             out.append('\tmov r10, [rax + ' + offset + ']')
             out.append('\tmov [rsp + ' + offset + '], r10')
@@ -555,20 +626,33 @@ class Function:
                 out.append('movsd [rsp + ' + sumsize + '], xmm0 ; Save sum')
         else:
             out.append('; Index to store in')
-            out.append('mov rax, 0')
 
-            for i in range(numbinds):
+            if self.asm.oplvl > 0:
+                out.append('mov rax, [rsp + 8]')
+                rng = range(1, numbinds)
+            else:
+                out.append('mov rax, 0')
+                rng = range(numbinds)
+
+            for i in rng:
                 boundoffset = str(((i + numbinds) * 8) + elmtsize)
                 increment = str((i * 8) + elmtsize)
-                out.append('imul rax, [rsp + ' + boundoffset + '] ; No overflow if indices in bounds')
+
+                if self.asm.oplvl > 0 and self.intsubcheck(expr.pairs[i][1].intVal):
+                    out.append('imul rax, ' + str(expr.pairs[i][1].intVal))
+                else:
+                    out.append('imul rax, [rsp + ' + boundoffset + '] ; No overflow if indices in bounds')
                 out.append('add rax, [rsp + ' + increment + ']')
 
-            out.append('imul rax, ' + str(elmtsize))
+            if self.asm.oplvl > 0 and self.is2pow(elmtsize):
+                out.append('shl rax, ' + self.get2pow(elmtsize))
+            else:
+                out.append('imul rax, ' + str(elmtsize))
             out.append('add rax, [rsp + ' + str((16 * numbinds) + elmtsize) + ']')
 
             out.append('; Move body (' + str(elmtsize) + ' bytes) to index')
             out.append('; Moving ' + str(elmtsize) + ' bytes from rsp to rax')
-            for i in reversed(range(int(elmtsize/8))):
+            for i in reversed(range(int(elmtsize / 8))):
                 increment = str(i * 8)
                 out.append('\tmov r10, [rsp + ' + increment + ']')
                 out.append('\tmov [rax + ' + increment + '], r10')
@@ -609,10 +693,7 @@ class Function:
 
         # self.stackdesc.localvarsize = localvarelim
 
-
-
-
-    def gen_expr(self, expr : Expr, out):
+    def gen_expr(self, expr: Expr, out):
         if type(expr) is IntExpr:
             return self.gen_intexpr(expr, out)
         elif type(expr) is FloatExpr:
@@ -672,7 +753,8 @@ class Function:
     def gen_readcmd(self, cmd: ReadCmd, out):
         out.append('sub rsp, 24')
         self.stackdesc.stacksize += 24
-        imgty = ArrayResolvedType(TupleResolvedType([FloatResolvedType(), FloatResolvedType(), FloatResolvedType(), FloatResolvedType()]), 2)
+        imgty = ArrayResolvedType(
+            TupleResolvedType([FloatResolvedType(), FloatResolvedType(), FloatResolvedType(), FloatResolvedType()]), 2)
         self.stackdesc.insertarg(cmd.vararg, imgty)
 
         out.append('lea rdi, [rsp]')
@@ -708,10 +790,10 @@ class Function:
             out.append('mov rax, [rbp - 8] ; Address to write return value into')
             size = self.get_resolvedtypesize(stmt.expr.ty, 0)
             out.append('; Moving 16 bytes from rsp to rax')
-            for i in reversed(range((int(size/8)))):
+            for i in reversed(range((int(size / 8)))):
                 increment = i * 8
                 out.append('\tmov r10, [rsp + ' + str(increment) + ']')
-                out.append('\tmov [rax + ' + str(increment)  + '], r10')
+                out.append('\tmov [rax + ' + str(increment) + '], r10')
 
     def gen_letstmt(self, stmt: LetStmt, out):
         self.gen_expr(stmt.expr, out)
@@ -960,5 +1042,3 @@ class Function:
     def unadjust_stack(self, stackinfo: []):
         stackinfo.append('add rsp, 8 ; Remove alignment')
         self.stackdesc.stacksize -= 8
-
-

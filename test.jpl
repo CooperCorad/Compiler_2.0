@@ -1,2 +1,4 @@
-time time show 1
+let a = array[i: 11, j: 12] i * (j + 1)
+//let x = -1
+show a[1, 200]
 
