@@ -6,15 +6,15 @@ import myasmgenerator
 
 def main():
 
-    # flag = sys.argv[1]
-    # file_spec = sys.argv[2]
-    # optimization = 0
-    # if len(sys.argv) == 4:
-    #     optimization = int(sys.argv[2][2:])
-    #     file_spec = sys.argv[3]
-    flag = '-s'
-    file_spec = 'test.jpl'
-    optimization = 1
+    flag = sys.argv[1]
+    file_spec = sys.argv[2]
+    optimization = 0
+    if len(sys.argv) == 4:
+        optimization = int(sys.argv[2][2:])
+        file_spec = sys.argv[3]
+    # flag = '-s'
+    # file_spec = 'test.jpl'
+    # optimization = 1
     # optimization = 0
 
     if flag[0] != '-':

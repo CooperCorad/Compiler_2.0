@@ -1,3 +1,2 @@
-let x = array[i : 1, j : 2, k : 3, l : 4] i / (j * k) + l
-show x[1, 2, 3, 4]
+show (array[i : argnum] i)[0]
 

@@ -163,7 +163,7 @@ class Function:
 
     def is2pow(self, x: int):
         if x <= 0:
-            return false
+            return False
         return x >= 0 and x & (x - 1) == 0
 
     def get2pow(self, x: int):
@@ -186,9 +186,12 @@ class Function:
             return
         if self.asm.oplvl > 0 and type(expr.rexpr) is IntExpr and \
                 expr.op == '*' and self.is2pow(expr.rexpr.intVal):
+            shlval = self.get2pow(expr.rexpr.intVal)
             self.gen_expr(expr.lexpr, out)
+            if shlval == '0':
+                return
             self.pop_reg(out, 'rax')
-            out.append('shl rax, ' + self.get2pow(expr.rexpr.intVal))
+            out.append('shl rax, ' + shlval)
             self.push_reg(out, 'rax')
             return
 
@@ -445,17 +448,19 @@ class Function:
             return self.stackdesc.nameloc[expr.expr.variable.variable]
         elif type(expr.expr) is ArrayIndexExpr:
             return self.get_arrindex_loc(expr.expr)
+        elif type(expr.expr) is ArrayLoopExpr:
+            return 8
 
     def gen_arrindexexpr(self, expr: ArrayIndexExpr, out):
         if self.asm.oplvl > 0:  # TODO AND LOCAL VAR
-            gap = self.stackdesc.stacksize - self.stackdesc.nameloc[expr.expr.variable.variable] + (8 * len(expr.exprs))
+            gap = self.stackdesc.stacksize - self.get_arrindex_loc(expr) + (8 * len(expr.exprs))
 
         if type(expr.expr) is not VariableExpr:
             self.gen_expr(expr.expr, out)
         arrsize = self.get_resolvedtypesize(expr.expr.ty, 0)
 
         arrloc = self.get_arrindex_loc(expr)
-        if type(expr.expr) is not ArrayIndexExpr and \
+        if type(expr.expr) is not ArrayIndexExpr and type(expr.expr) is not ArrayLoopExpr and \
                 arrloc != 0 and arrloc is not None and \
                 self.asm.oplvl < 1:
             out.append('sub rsp, ' + str(arrsize))
@@ -524,7 +529,7 @@ class Function:
         else:
             out.append('imul rax, ' + str(sizeofitems))  # TODO what is this?
 
-        if self.asm.oplvl < 1:
+        if self.asm.oplvl < 1 or type(expr.expr) is ArrayIndexExpr:
             out.append('add rax, [rsp + ' + str(arrsize - 8 + indexcount * 8) + ']')
             for i in range(indexcount):
                 out.append('add rsp, 8')
@@ -535,6 +540,9 @@ class Function:
             out.append('add rax, [rsp + ' + str(gap + arrsize - 8) + ']')
             out.append('add rsp, ' + str(8 * len(expr.exprs)))
             self.stackdesc.stacksize -= (8 * len(expr.exprs))
+            if type(expr.expr) is ArrayLoopExpr:
+                out.append('add rsp, ' + str(arrsize))
+                self.stackdesc.stacksize -= arrsize
         # out.append('add rsp, ' + str(arrsize))
         # self.stackdesc.stacksize -= arrsize
         out.append('sub rsp, ' + str(sizeofitems))  # TODO same as 'what is this?'
