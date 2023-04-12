@@ -11,11 +11,28 @@ precedence = [['array', 'sum', 'if'],
                 ['{', '[']]
 
 
-
 class ParserException(Exception):
     def __init__(self, _message):
         self.message = _message
         super().__init__(self.message)
+
+
+class CPValue:
+    pass
+
+
+class IntValue(CPValue):
+    val: int
+
+    def __init__(self, _val: int):
+        self.val = _val
+
+
+class ArrayValue(CPValue):
+    cpvals: []
+
+    def __init__(self, _vals: []):
+        self.cpvals = _vals
 
 
 class ASTNode:
@@ -100,9 +117,11 @@ class Expr(ASTNode):
 class IntExpr(Expr):
     intVal: int
     ty = None
+    cp: CPValue
 
     def __init__(self, _intVal: str):
         self.intVal = int(_intVal)
+        self.cp = None
         if self.intVal < -pow(2, 63) or self.intVal > ((pow(2, 63)) - 1):
             raise ParserException("You cannot have an int beyond the ranges -2^63 <-> 2^63 - 1")
 
@@ -117,9 +136,11 @@ class IntExpr(Expr):
 class FloatExpr(Expr):
     floatVal: float
     ty = None
+    cp: CPValue
 
     def __init__(self, _floatVal: str):
         self.floatVal = float(_floatVal)
+        self.cp = None
         if math.isnan(self.floatVal) or math.isinf(self.floatVal):
             raise ParserException("You cannot have an infinite or NaN float (likely a divide by Zero issue!")
 
@@ -133,6 +154,10 @@ class FloatExpr(Expr):
 
 class TrueExpr(Expr):
     ty = None
+    cp: CPValue
+
+    def __init__(self):
+        self.cp = None
 
     def to_string(self):
         typestr = ''
@@ -144,6 +169,10 @@ class TrueExpr(Expr):
 
 class FalseExpr(Expr):
     ty = None
+    cp: CPValue
+
+    def __init__(self):
+        self.cp = None
 
     def to_string(self):
         typestr = ''
@@ -156,9 +185,11 @@ class FalseExpr(Expr):
 class VariableExpr(Expr):
     variable: Variable
     ty = None
+    cp: CPValue
 
     def __init__(self, _variable: Variable):
         self.variable = _variable
+        self.cp = None
 
     def to_string(self):
         typestr = ''
@@ -172,10 +203,12 @@ class TupleIndexExpr(Expr):
     index : int
     varxpr : Expr
     ty = None
+    cp: CPValue
 
     def __init__(self, _index : int, _varxpr : Expr):
         self.index = _index
         self.varxpr = _varxpr
+        self.cp = None
 
     def to_string(self):
         typestr = ''
@@ -189,10 +222,12 @@ class ArrayIndexExpr(Expr):
     expr : Expr
     exprs : []
     ty = None
+    cp: CPValue
 
     def __init__(self, _expr : Expr, _exprs : []):
         self.expr = _expr
         self.exprs = _exprs
+        self.cp = None
 
     def to_string(self):
         typestr = ''
@@ -210,10 +245,12 @@ class ArrayIndexExpr(Expr):
 class CallExpr(Expr):
     exprs : []
     ty = None
+    cp: CPValue
 
     def __init__(self, _variable, _vals : []):
         self.variable = _variable
         self.exprs = _vals
+        self.cp = None
 
     def to_string(self):
         typestr = ''
@@ -230,10 +267,12 @@ class UnopExpr(Expr):
     op : str
     expr : Expr
     ty = None
+    cp: CPValue
 
     def __init__(self, _op : str, _expr : Expr):
         self.op = _op
         self.expr = _expr
+        self.cp = None
 
     def to_string(self):
         typestr = ''
@@ -248,11 +287,13 @@ class BinopExpr(Expr):
     lexpr: Expr
     rexpr: Expr
     ty = None
+    cp: CPValue
 
     def __init__(self, _op: str, _lexpr: Expr, _rexpr: Expr):
         self.op = _op
         self.lexpr = _lexpr
         self.rexpr = _rexpr
+        self.cp = None
 
     def to_string(self):
         typestr = ''
@@ -267,11 +308,13 @@ class IfExpr(Expr):
     thenexp : Expr
     elseexp: Expr
     ty = None
+    cp: CPValue
 
     def __init__(self, _ifexp : Expr, _thenexp : Expr, _elseexp : Expr):
         self.ifexp = _ifexp
         self.thenexp = _thenexp
         self.elseexp = _elseexp
+        self.cp = None
 
     def to_string(self):
         typestr = ''
@@ -285,10 +328,12 @@ class ArrayLoopExpr(Expr):
     pairs : [(Variable, Expr)]
     expr : Expr
     ty = None
+    cp: CPValue
 
     def __init__(self, _pairs : [(Variable, Expr)], _expr : Expr):
         self.pairs = _pairs
         self.expr = _expr
+        self.cp = None
 
     def to_string(self):
         typestr = ''
@@ -305,10 +350,12 @@ class SumLoopExpr(Expr):
     pairs : [(Variable, Expr)]
     expr : Expr
     ty = None
+    cp: CPValue
 
     def __init__(self, _pairs : [(Variable, Expr)], _expr : Expr):
         self.pairs = _pairs
         self.expr = _expr
+        self.cp = None
 
     def to_string(self):
         typestr = ''
@@ -397,9 +444,11 @@ class ArrayType(Type):
 class TupleLiteralExpr(Expr):
     types : []
     ty = None
+    cp: CPValue
 
     def __init__(self, _types : []):
         self.types = _types
+        self.cp = None
 
     def to_string(self):
         typestr = ''
@@ -415,9 +464,11 @@ class TupleLiteralExpr(Expr):
 class ArrayLiteralExpr(Expr):
     types : []
     ty = None
+    cp: CPValue
 
     def __init__(self, _types : []):
         self.types = _types
+        self.cp = None
 
     def to_string(self):
         typestr = ''

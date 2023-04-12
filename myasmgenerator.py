@@ -95,8 +95,10 @@ class Function:
         return x & ((1 << 31) - 1) == x
 
     def gen_intexpr(self, expr: IntExpr, out):
-        if self.asm.oplvl > 0 and self.intsubcheck(expr.intVal):
+        if self.asm.oplvl == 1 and self.intsubcheck(expr.intVal):
             self.push_reg(out, "qword " + str(expr.intVal))
+        elif self.asm.oplvl > 1 and expr.cp and self.intsubcheck(expr.cp.val):
+            self.push_reg(out, "qword " + str(expr.cp.val))
         else:
             name = self.asm.add_const(expr)
             out.append('mov rax, [rel ' + name + '] ; ' + str(expr.intVal))
@@ -174,7 +176,7 @@ class Function:
             self.gen_shortcut(expr, out)
             return
 
-        if self.asm.oplvl > 0 and type(expr.lexpr) is IntExpr and \
+        if self.asm.oplvl == 1 and type(expr.lexpr) is IntExpr and \
                 expr.op == '*' and self.is2pow(expr.lexpr.intVal):
             shlval = self.get2pow(expr.lexpr.intVal)
             self.gen_expr(expr.rexpr, out)
@@ -184,9 +186,27 @@ class Function:
             out.append('shl rax, ' + shlval)
             self.push_reg(out, 'rax')
             return
-        if self.asm.oplvl > 0 and type(expr.rexpr) is IntExpr and \
+        if self.asm.oplvl == 1 and type(expr.rexpr) is IntExpr and \
                 expr.op == '*' and self.is2pow(expr.rexpr.intVal):
             shlval = self.get2pow(expr.rexpr.intVal)
+            self.gen_expr(expr.lexpr, out)
+            if shlval == '0':
+                return
+            self.pop_reg(out, 'rax')
+            out.append('shl rax, ' + shlval)
+            self.push_reg(out, 'rax')
+            return
+        if self.asm.oplvl == 2 and expr.op == '*' and expr.lexpr.cp and self.is2pow(expr.lexpr.cp.val):
+            shlval = self.get2pow(expr.lexpr.cp.val)
+            self.gen_expr(expr.rexpr, out)
+            if shlval == '0':
+                return
+            self.pop_reg(out, 'rax')
+            out.append('shl rax, ' + shlval)
+            self.push_reg(out, 'rax')
+            return
+        if self.asm.oplvl == 2 and expr.op == '*' and expr.rexpr.cp and self.is2pow(expr.rexpr.cp.val):
+            shlval = self.get2pow(expr.rexpr.cp.val)
             self.gen_expr(expr.lexpr, out)
             if shlval == '0':
                 return
@@ -351,6 +371,11 @@ class Function:
         self.push_reg(out, 'rax')
 
     def gen_varexpr(self, expr: VariableExpr, out):
+        if self.asm.oplvl > 1 and expr.cp and self.intsubcheck(expr.cp.val):
+            out.append('push qword ' + str(expr.cp.val))
+            self.stackdesc.stacksize += 8
+            return
+
         movesize = self.get_resolvedtypesize(expr.ty, 0)
         out.append('sub rsp, ' + str(movesize))
         self.stackdesc.stacksize += movesize
@@ -423,9 +448,12 @@ class Function:
     def gen_ifexpr(self, expr: IfExpr, out):
         self.gen_expr(expr.ifexp, out)
 
-        if self.asm.oplvl > 0 and \
+        if self.asm.oplvl == 1 and \
                 type(expr.thenexp) is IntExpr and expr.thenexp.intVal == 1 and \
                 type(expr.elseexp) is IntExpr and expr.elseexp.intVal == 0:
+            return
+        elif self.asm.oplvl == 2 and expr.thenexp.cp and expr.elseexp.cp and \
+                expr.thenexp.cp.val == 1 and expr.elseexp.cp.val == 0:
             return
 
         self.pop_reg(out, 'rax')
@@ -649,11 +677,18 @@ class Function:
                 boundoffset = str(((i + numbinds) * 8) + elmtsize)
                 increment = str((i * 8) + elmtsize)
 
-                if self.asm.oplvl > 0 and type(expr.pairs[i][1]) is IntExpr:
+                if self.asm.oplvl == 1 and type(expr.pairs[i][1]) is IntExpr:
                     if self.is2pow(expr.pairs[i][1].intVal):
                         out.append('shl rax, ' + str(self.get2pow(expr.pairs[i][1].intVal)))
                     elif self.intsubcheck(expr.pairs[i][1].intVal):
                         out.append('imul rax, ' + str(expr.pairs[i][1].intVal))
+                    else:
+                        out.append('imul rax, [rsp + ' + boundoffset + '] ; No overflow if indices in bounds')
+                elif self.asm.oplvl == 2 and expr.pairs[i][1].cp:
+                    if self.is2pow(expr.pairs[i][1].cp.val):
+                        out.append('shl rax, ' + str(self.get2pow(expr.pairs[i][1].cp.val)))
+                    elif self.intsubcheck(expr.pairs[i][1].cp.val):
+                        out.append('imul rax, ' + str(expr.pairs[i][1].cp.val))
                     else:
                         out.append('imul rax, [rsp + ' + boundoffset + '] ; No overflow if indices in bounds')
                 else:

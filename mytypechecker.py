@@ -352,3 +352,120 @@ class TypeChecker:
             if not retfound and not emptyret:
                 ret = 'You have declared return type ' + retty.to_string() + ' but do no return'
                 raise TypeCheckerException(ret)
+
+
+class ASTVisitor:
+    pass
+
+class ConstantPropogation(ASTVisitor):
+    context: dict
+
+    # TODO move all but int, var, letcmd && overload them
+
+    def __init__(self, _ASTTree: []):
+        self.context = dict()
+        self.ASTTree = _ASTTree
+
+    def prop_constants(self):
+        for cmd in self.ASTTree:
+            self.visit_cmd(cmd)
+
+    def add_arg_context(self, arg, cp: CPValue):
+        if isinstance(arg.variable, VarArg):
+            self.context[arg.variable.variable.variable] = cp
+            # if isinstance(cp, ArrayValue):
+            #     this.
+        # TODO array args?
+        if isinstance(arg.variable, ArrayArgument):
+            self.context[arg.variable.variable.variable] = cp
+            for i in range(len(arg.variable.arguments)):
+                var = arg.variable.arguments[i].variable
+                val = cp.cpvals[i]
+                self.context[var] = val
+
+    def update_context(self, lval, cp: CPValue):
+        if isinstance(lval, TupleLValue):
+            for _name in lval.variables:
+                self.update_context(_name)
+        if isinstance(lval, list):
+            for i in range(len(lval)):
+                lv = lval[i]
+                seep = cp[i]
+                # self
+        else:
+            self.add_arg_context(lval, cp)
+
+    def visit_intexpr(self, expr: IntExpr):
+        expr.cp = IntValue(expr.intVal)
+        return expr.cp
+
+    def visit_varexpr(self, expr: VariableExpr):
+        if expr.variable.variable in self.context:
+            expr.cp = self.context[expr.variable.variable]
+            return expr.cp
+
+    def visit_binopexpr(self, expr: BinopExpr):
+        self.visit_expr(expr.lexpr)
+        self.visit_expr(expr.rexpr)
+
+    def visit_arrliteralexpr(self, expr: ArrayLiteralExpr):
+        for exp in expr.types:
+            self.visit_expr(exp)
+        expr.cp = ArrayValue([IntValue(1)])
+
+    def visit_arrloopexpr(self, expr: ArrayLoopExpr):
+        cps = []
+        for pair in expr.pairs:
+            cps.append(self.visit_expr(pair[1]))
+        self.visit_expr(expr.expr)
+        expr.cp = ArrayValue(cps)
+        # self.update_context()
+        return expr.cp
+
+    def visit_sumloopexpr(self, expr: SumLoopExpr):
+        for pair in expr.pairs:
+            self.visit_expr(pair[1])
+        self.visit_expr(expr.expr)
+        return expr.cp
+
+    def visit_ifexpr(self, expr: IfExpr):
+        self.visit_expr(expr.ifexp)
+        self.visit_expr(expr.thenexp)
+        self.visit_expr(expr.elseexp)
+
+    def visit_arrindexexpr(self, expr: ArrayIndexExpr):
+        self.visit_expr(expr.expr)
+        for exp in expr.exprs:
+            self.visit_expr(exp)
+
+    def visit_expr(self, expr: Expr):
+        if isinstance(expr, IntExpr):
+            return self.visit_intexpr(expr)
+        elif isinstance(expr, VariableExpr):
+            return self.visit_varexpr(expr)
+        elif isinstance(expr, BinopExpr):
+            return self.visit_binopexpr(expr)
+        elif isinstance(expr, ArrayLiteralExpr):
+            return self.visit_arrliteralexpr(expr)
+        elif isinstance(expr, ArrayLoopExpr):
+            return self.visit_arrloopexpr(expr)
+        elif isinstance(expr, IfExpr):
+            return self.visit_ifexpr(expr)
+        elif isinstance(expr, ArrayIndexExpr):
+            return self.visit_arrindexexpr(expr)
+        elif isinstance(expr, SumLoopExpr):
+            return self.visit_sumloopexpr(expr)
+
+    def visit_letcmd(self, cmd: LetCmd):
+        self.visit_expr(cmd.expr)
+        if cmd.expr.cp:
+            self.update_context(cmd.lvalue, cmd.expr.cp)
+
+    def visit_showcmd(self, cmd: ShowCmd):
+        self.visit_expr(cmd.expr)
+
+    def visit_cmd(self, cmd: Cmd):
+        if isinstance(cmd, LetCmd):
+            self.visit_letcmd(cmd)
+        if isinstance(cmd, ShowCmd):
+            self.visit_showcmd(cmd)

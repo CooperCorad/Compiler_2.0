@@ -14,6 +14,7 @@ def main():
         file_spec = sys.argv[3]
     # flag = '-s'
     # file_spec = 'test.jpl'
+    # optimization = 2
     # optimization = 1
     # optimization = 0
 
@@ -90,6 +91,10 @@ def main():
 
             newtypechecker = mytypechecker.TypeChecker(newparser.program)
             newtypechecker.type_check()
+
+            if optimization > 1:
+                newconstantpropagator = mytypechecker.ConstantPropogation(newtypechecker.exprTree)
+                newconstantpropagator.prop_constants()
 
             newasmgen = myasmgenerator.AsmGenerator(newtypechecker.exprTree)
             newasmgen.oplvl = optimization
