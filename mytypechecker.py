@@ -408,6 +408,9 @@ class ConstantPropogation(ASTVisitor):
         self.visit_expr(expr.lexpr)
         self.visit_expr(expr.rexpr)
 
+    def visit_unopexpr(self, expr: UnopExpr):
+        self.visit_expr(expr.expr)
+
     def visit_arrliteralexpr(self, expr: ArrayLiteralExpr):
         for exp in expr.types:
             self.visit_expr(exp)
@@ -455,6 +458,8 @@ class ConstantPropogation(ASTVisitor):
             return self.visit_arrindexexpr(expr)
         elif isinstance(expr, SumLoopExpr):
             return self.visit_sumloopexpr(expr)
+        elif isinstance(expr, UnopExpr):
+            return self.visit_unopexpr(expr)
 
     def visit_letcmd(self, cmd: LetCmd):
         self.visit_expr(cmd.expr)

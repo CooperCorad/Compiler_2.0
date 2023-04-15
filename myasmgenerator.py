@@ -471,20 +471,19 @@ class Function:
 
     def get_arrindex_loc(self, expr: ArrayIndexExpr):
         if type(expr.expr) is ArrayLiteralExpr:
-            return 0
+            return 1
         elif type(expr.expr) is VariableExpr:
-            return self.stackdesc.nameloc[expr.expr.variable.variable]
+            return self.stackdesc.nameloc[expr.expr.variable.variable]  # TODO is this right?
         elif type(expr.expr) is ArrayIndexExpr:
             return self.get_arrindex_loc(expr.expr)
         elif type(expr.expr) is ArrayLoopExpr:
-            return 8
+            return len(expr.exprs)
 
     def gen_arrindexexpr(self, expr: ArrayIndexExpr, out):
-        if self.asm.oplvl > 0:  # TODO AND LOCAL VAR
-            gap = self.stackdesc.stacksize - self.get_arrindex_loc(expr) + (8 * len(expr.exprs))
 
         if type(expr.expr) is not VariableExpr:
             self.gen_expr(expr.expr, out)
+
         arrsize = self.get_resolvedtypesize(expr.expr.ty, 0)
 
         arrloc = self.get_arrindex_loc(expr)
@@ -501,6 +500,11 @@ class Function:
 
         for exp in reversed(expr.exprs):
             self.gen_expr(exp, out)
+        if self.asm.oplvl > 0:  # TODO AND LOCAL VAR
+            if isinstance(expr.expr, VariableExpr):
+                gap = self.stackdesc.stacksize - self.stackdesc.nameloc[expr.expr.variable.variable] - self.get_resolvedtypesize(expr.expr.ty, 0) + 8 + (8 * len(expr.exprs))
+            else:
+                gap = 8 * len(expr.exprs)
 
         indexcount = len(expr.exprs)
 
@@ -520,6 +524,7 @@ class Function:
 
             out.append('.jump' + negindexjmp + ':')
             if self.asm.oplvl > 0:
+                # gap = self.stackdesc.stacksize - (8 * len(expr.exprs)) + self.stackdesc.localvarsize
                 out.append('cmp rax, [rsp + ' + str(gap + 8 * i) + ']')
             else:
                 out.append('cmp rax, [rsp + ' + str(offset + 8 * indexcount) + ']')
@@ -547,9 +552,9 @@ class Function:
             if self.asm.oplvl == 1:
                 out.append('imul rax, [rsp + ' + str(gap + offset) + ']')
                 # out.append('add rax, [rsp + ' + str(gap) + ']')
-            elif self.asm.oplvl > 1 and expr.expr.cp.cpvals[i] and self.is2pow(expr.expr.cp.cpvals[i].val):
+            elif self.asm.oplvl > 1 and isinstance(expr.expr.cp, ArrayValue) and expr.expr.cp.cpvals[i] and self.is2pow(expr.expr.cp.cpvals[i].val):
                 out.append('shl rax, ' + self.get2pow(expr.expr.cp.cpvals[i].val))
-            elif self.asm.oplvl > 1 and expr.expr.cp.cpvals[i]:
+            elif self.asm.oplvl > 1 and isinstance(expr.expr.cp, ArrayValue) and expr.expr.cp.cpvals[i]:
                 out.append('imul rax, ' + str(expr.expr.cp.cpvals[i].val))
             else:
                 out.append('imul rax, [rsp + ' + str(offset + (indexcount * 8)) + '] ; No overflow if indices in bounds')
@@ -570,13 +575,16 @@ class Function:
             self.stackdesc.stacksize -= arrsize
         else:
             out.append('add rax, [rsp + ' + str(gap + arrsize - 8) + ']')
-            out.append('add rsp, ' + str(8 * len(expr.exprs)))
-            self.stackdesc.stacksize -= (8 * len(expr.exprs))
-            if type(expr.expr) is ArrayLoopExpr:
+            if isinstance(expr.expr, ArrayLoopExpr):
+                for i in range(indexcount):
+                    out.append('add rsp, 8')
+                    self.stackdesc.stacksize -= 8
+            else:
+                out.append('add rsp, ' + str(8 * len(expr.exprs)))
+                self.stackdesc.stacksize -= (8 * len(expr.exprs))
+            if type(expr.expr) is not VariableExpr:
                 out.append('add rsp, ' + str(arrsize))
                 self.stackdesc.stacksize -= arrsize
-        # out.append('add rsp, ' + str(arrsize))
-        # self.stackdesc.stacksize -= arrsize
         out.append('sub rsp, ' + str(sizeofitems))  # TODO same as 'what is this?'
         self.stackdesc.stacksize += sizeofitems
 
@@ -590,6 +598,9 @@ class Function:
         sumloop = False
         if type(expr) is SumLoopExpr:
             sumloop = True
+        # else:
+        #     self.stackdesc.localvarsize += 8
+
 
         out.append('sub rsp, 8')
         self.stackdesc.stacksize += 8
@@ -649,6 +660,7 @@ class Function:
             self.push_reg(out, 'rax')
             name = expr.pairs[i][0].variable
             self.stackdesc.nameloc[name] = self.stackdesc.stacksize
+            # self.stackdesc.localvarsize += 8
         # ~~ end ~~
 
         loopbodjump = str(self.asm.add_jump())

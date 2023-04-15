@@ -1,3 +1,1 @@
-let m = array[i : 256, j : 512] i
-show m[12, 13]
-
+let a[b, c] = (array[a : (array[a : 288, b : argnum] (array[c : argnum, d : b] a))[115, argnum][argnum, 415], b : (array[a : 495, b : argnum, c : (array[a : 923, b : 338, c : 923] argnum)[argnum, 597, args[argnum]]] 639)[27, argnum, argnum]] (array[c : b] argnum))
