@@ -544,9 +544,13 @@ class Function:
 
         for i in rng:
             offset = i * 8
-            if self.asm.oplvl > 0:
+            if self.asm.oplvl == 1:
                 out.append('imul rax, [rsp + ' + str(gap + offset) + ']')
                 # out.append('add rax, [rsp + ' + str(gap) + ']')
+            elif self.asm.oplvl > 1 and expr.expr.cp.cpvals[i] and self.is2pow(expr.expr.cp.cpvals[i].val):
+                out.append('shl rax, ' + self.get2pow(expr.expr.cp.cpvals[i].val))
+            elif self.asm.oplvl > 1 and expr.expr.cp.cpvals[i]:
+                out.append('imul rax, ' + str(expr.expr.cp.cpvals[i].val))
             else:
                 out.append('imul rax, [rsp + ' + str(offset + (indexcount * 8)) + '] ; No overflow if indices in bounds')
             out.append('add rax, [rsp + ' + str(offset) + ']')

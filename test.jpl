@@ -1,5 +1,3 @@
+let m = array[i : 256, j : 512] i
+show m[12, 13]
 
-let X = 512
-let m[Y, Z] = array[i : X, j : argnum] i
-show Y
-show Z

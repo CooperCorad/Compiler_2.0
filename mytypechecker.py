@@ -411,7 +411,7 @@ class ConstantPropogation(ASTVisitor):
     def visit_arrliteralexpr(self, expr: ArrayLiteralExpr):
         for exp in expr.types:
             self.visit_expr(exp)
-        expr.cp = ArrayValue([IntValue(1)])
+        expr.cp = ArrayValue([IntValue(len(expr.types))])
 
     def visit_arrloopexpr(self, expr: ArrayLoopExpr):
         cps = []
