@@ -12,7 +12,7 @@ def main():
     if len(sys.argv) == 4:
         optimization = int(sys.argv[2][2:])
         file_spec = sys.argv[3]
-    #
+
     # flag = '-s'
     # file_spec = 'test.jpl'
     # optimization = 2

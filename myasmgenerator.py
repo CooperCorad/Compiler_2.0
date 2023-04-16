@@ -471,7 +471,7 @@ class Function:
 
     def get_arrindex_loc(self, expr: ArrayIndexExpr):
         if type(expr.expr) is ArrayLiteralExpr:
-            return 1
+            return 0
         elif type(expr.expr) is VariableExpr:
             return self.stackdesc.nameloc[expr.expr.variable.variable]  # TODO is this right?
         elif type(expr.expr) is ArrayIndexExpr:
@@ -505,6 +505,9 @@ class Function:
                 gap = self.stackdesc.stacksize - self.stackdesc.nameloc[expr.expr.variable.variable] - self.get_resolvedtypesize(expr.expr.ty, 0) + 8 + (8 * len(expr.exprs))
             else:
                 gap = 8 * len(expr.exprs)
+
+            # if gap == 24:
+            #     print("HELLO BOZO")
 
         indexcount = len(expr.exprs)
 
@@ -547,6 +550,10 @@ class Function:
         else:
             out.append('mov rax, 0')
 
+        if self.asm.jmp_counter == 67:
+            # out.append("hello boxo")
+            pass
+
         for i in rng:
             offset = i * 8
             if self.asm.oplvl == 1:
@@ -557,7 +564,9 @@ class Function:
             elif self.asm.oplvl > 1 and isinstance(expr.expr.cp, ArrayValue) and expr.expr.cp.cpvals[i]:
                 out.append('imul rax, ' + str(expr.expr.cp.cpvals[i].val))
             elif self.asm.oplvl > 1 and isinstance(expr.expr.cp, ArrayValue) and expr.expr.cp.cpvals[i] is None:
-                out.append('imul rax, [rsp + ' + str(offset + (indexcount * 8)) + '] ; No overflow if indices in bounds')
+                out.append('imul rax, [rsp + ' + str(offset + gap) + '] ; No overflow if indices in bounds')
+            elif self.asm.oplvl > 1 and expr.expr.cp is None:
+                out.append('imul rax, [rsp + ' + str(offset + gap) + '] ; No overflow if indices in bounds')
             else:
                 out.append('imul rax, [rsp + ' + str(offset + (indexcount * 8)) + '] ; No overflow if indices in bounds')
             out.append('add rax, [rsp + ' + str(offset) + ']')
