@@ -97,7 +97,7 @@ class Function:
     def gen_intexpr(self, expr: IntExpr, out):
         if self.asm.oplvl == 1 and self.intsubcheck(expr.intVal):
             self.push_reg(out, "qword " + str(expr.intVal))
-        elif self.asm.oplvl > 1 and expr.cp and self.intsubcheck(expr.cp.val):
+        elif self.asm.oplvl > 1 and isinstance(expr.cp, IntValue) and self.intsubcheck(expr.cp.val):
             self.push_reg(out, "qword " + str(expr.cp.val))
         else:
             name = self.asm.add_const(expr)
@@ -196,7 +196,7 @@ class Function:
             out.append('shl rax, ' + shlval)
             self.push_reg(out, 'rax')
             return
-        if self.asm.oplvl == 2 and expr.op == '*' and expr.lexpr.cp and self.is2pow(expr.lexpr.cp.val):
+        if self.asm.oplvl == 2 and expr.op == '*' and isinstance(expr.lexpr.cp, IntValue) and self.is2pow(expr.lexpr.cp.val):
             shlval = self.get2pow(expr.lexpr.cp.val)
             self.gen_expr(expr.rexpr, out)
             if shlval == '0':
@@ -205,7 +205,7 @@ class Function:
             out.append('shl rax, ' + shlval)
             self.push_reg(out, 'rax')
             return
-        if self.asm.oplvl == 2 and expr.op == '*' and expr.rexpr.cp and self.is2pow(expr.rexpr.cp.val):
+        if self.asm.oplvl == 2 and expr.op == '*' and isinstance(expr.rexpr.cp, IntValue) and self.is2pow(expr.rexpr.cp.val):
             shlval = self.get2pow(expr.rexpr.cp.val)
             self.gen_expr(expr.lexpr, out)
             if shlval == '0':
@@ -371,7 +371,7 @@ class Function:
         self.push_reg(out, 'rax')
 
     def gen_varexpr(self, expr: VariableExpr, out):
-        if self.asm.oplvl > 1 and expr.cp and self.intsubcheck(expr.cp.val):
+        if self.asm.oplvl > 1 and isinstance(expr.cp, IntValue) and self.intsubcheck(expr.cp.val):
             out.append('push qword ' + str(expr.cp.val))
             self.stackdesc.stacksize += 8
             return
@@ -452,7 +452,7 @@ class Function:
                 type(expr.thenexp) is IntExpr and expr.thenexp.intVal == 1 and \
                 type(expr.elseexp) is IntExpr and expr.elseexp.intVal == 0:
             return
-        elif self.asm.oplvl == 2 and expr.thenexp.cp and expr.elseexp.cp and \
+        elif self.asm.oplvl == 2 and isinstance(expr.thenexp.cp, IntValue) and isinstance(expr.elseexp.cp, IntValue) and \
                 expr.thenexp.cp.val == 1 and expr.elseexp.cp.val == 0:
             return
 
@@ -556,6 +556,8 @@ class Function:
                 out.append('shl rax, ' + self.get2pow(expr.expr.cp.cpvals[i].val))
             elif self.asm.oplvl > 1 and isinstance(expr.expr.cp, ArrayValue) and expr.expr.cp.cpvals[i]:
                 out.append('imul rax, ' + str(expr.expr.cp.cpvals[i].val))
+            elif self.asm.oplvl > 1 and isinstance(expr.expr.cp, ArrayValue) and expr.expr.cp.cpvals[i] is None:
+                out.append('imul rax, [rsp + ' + str(offset + (indexcount * 8)) + '] ; No overflow if indices in bounds')
             else:
                 out.append('imul rax, [rsp + ' + str(offset + (indexcount * 8)) + '] ; No overflow if indices in bounds')
             out.append('add rax, [rsp + ' + str(offset) + ']')
@@ -700,7 +702,7 @@ class Function:
                         out.append('imul rax, ' + str(expr.pairs[i][1].intVal))
                     else:
                         out.append('imul rax, [rsp + ' + boundoffset + '] ; No overflow if indices in bounds')
-                elif self.asm.oplvl == 2 and expr.pairs[i][1].cp:
+                elif self.asm.oplvl == 2 and isinstance(expr.pairs[i][1].cp, IntValue):
                     if self.is2pow(expr.pairs[i][1].cp.val):
                         out.append('shl rax, ' + str(self.get2pow(expr.pairs[i][1].cp.val)))
                     elif self.intsubcheck(expr.pairs[i][1].cp.val):
