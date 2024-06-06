@@ -3,6 +3,7 @@
     "files.associations": {
         "regex": "cpp",
         "istream": "cpp",
-        "limits": "cpp"
+        "limits": "cpp",
+        "string": "cpp"
     }
 }
