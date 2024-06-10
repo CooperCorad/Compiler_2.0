@@ -11,7 +11,6 @@ int main(int argc, char **argv) {
         Lexer lexMachine = Lexer(argv[2]);
         lexMachine.doLex();
         lexMachine.prettyPrint();
-        printf("Compilation succeeded: lexical analysis complete\n");
     } else if (!strcmp(argv[1], "-h")) {
         string help_msg = 
         "./jank [stage flag] [optimizer level] [in filename] [out filename]\
@@ -29,7 +28,6 @@ int main(int argc, char **argv) {
             exit(-1);
         }
         parseMachine.prettyPrint();
-        printf("Compilation succeeded: parsing complete\n");
     }
 
 

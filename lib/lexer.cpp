@@ -60,8 +60,9 @@ void Lexer::doLex(){
 
 void Lexer::prettyPrint() {
     for (int i = 0; i < tokens.size(); i++) {
-        printf("%s", tokens[i]->to_string().c_str());
+        cout << tokens[i]->to_string();
     }
+    cout << "Compilation succeeded: lexing complete\n";
 }
 
 std::vector<std::unique_ptr<Lex::Token>> Lex::Lexer::getTokens()

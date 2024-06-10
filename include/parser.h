@@ -11,7 +11,8 @@ namespace Parse
 {   
     class ASTNode {
         public:
-            virtual std::string to_string();
+            virtual std::string to_string() { return ""; };
+            virtual ~ASTNode() = default;
     };
 
     class cmd : public ASTNode {};
