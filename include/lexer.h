@@ -8,6 +8,7 @@
 #include <unordered_map>
 namespace Lex
 {
+
     enum Tokty{
         ARRAY, 
         ASSERT, 
@@ -58,8 +59,21 @@ namespace Lex
         {"type", TYPE}, {"write", WRITE}, {":", COLON}, {"{", LCURLY}, {"}", RCURLY},
         {"(", LPAREN}, {")", RPAREN}, {",", COMMA}, {"[", LSQUARE}, {"]", RSQUARE},
         {"=", EQUALS}, {"string", STRING}, {"intval", INTVAL}, {"floatval", FLOATVAL},
-        {"var", VARIABLE}, {"op", OP}, {"read", READ}, {"\n", NEWLINE}, {"eof", END_OF_FILE}
+        {"variable", VARIABLE}, {"op", OP}, {"read", READ}, {"\n", NEWLINE}, {"eof", END_OF_FILE}, {"time", TIME}
     };
+
+    static std::unordered_map<Tokty, std::string> const revTbl = {
+        {ARRAY, "ARRAY"}, {ASSERT, "ASSERT"}, {BOOL, "BOOL"}, {ELSE, "ELSE"}, {TIME, "TIME"},
+        {FALSE, "FALSE"}, {FLOAT, "FLOAT"}, {FN, "FN"}, {IF, "IF"}, {IMAGE, "IMAGE"},
+        {INT, "INT"}, {LET, "LET"}, {PRINT, "PRINT"}, {READ, "READ"}, {RETURN, "RETURN"},
+        {SHOW, "SHOW"}, {SUM, "SUM"}, {THEN, "THEN"}, {TO, "TO"}, {TRUE, "TRUE"},
+        {TYPE, "TYPE"}, {WRITE, "WRITE"}, {COLON, "COLON"}, {LCURLY, "LCURLY"}, {RCURLY, "RCURLY"},
+        {LPAREN, "LPAREN"}, {RPAREN, "RPAREN"}, {COMMA, "COMMA"}, {LSQUARE, "LSQUARE"}, {RSQUARE, "RSQUARE"},
+        {EQUALS, "EQUALS"}, {STRING, "STRING"}, {INTVAL, "INTVAL"}, {FLOATVAL, "FLOATVAL"},
+        {VARIABLE, "VARIABLE"}, {OP, "OP"}, {READ, "READ"}, {NEWLINE, "NEWLINE"}, {END_OF_FILE, "END_OF_FILE"}
+
+    };
+
 
     inline Tokty strToTokty(std::string match){
         auto it = tbl.find(match);
@@ -82,6 +96,8 @@ namespace Lex
             Token();
             ~Token();
 
+            std::string to_string();
+
     };
 
     class Lexer {
@@ -92,15 +108,12 @@ namespace Lex
 
             Lexer(std::string);
 
-            std::tuple<std::unique_ptr<Lex::Token>, int> lexNum(int);
-            // std::tuple<std::unique_ptr<Lex::Token>, int> lexKeyword(int);
-            std::tuple<std::unique_ptr<Lex::Token>, int> lexPunct(int);
             std::tuple<std::unique_ptr<Lex::Token>, int> lexVar(int);
             std::tuple<std::unique_ptr<Lex::Token>, int> lexItem(int);
             int lexWhiteSpc(int);
-            int goUntil(int, char);
 
             void doLex();
+            void prettyPrint();
     };      
 
 

@@ -1,16 +1,15 @@
 #include <iostream>
 #include "../include/lexer.h"
+#include <regex>
 using namespace std;
 using namespace Lex;
 
 int main(int argc, char **argv) {
-
     if (!strcmp(argv[1], "-l")){
         Lexer lexMachine = Lexer(argv[2]);
-        unique_ptr<Token> t;
-        int loc;
-        loc = lexMachine.lexWhiteSpc(0);
-        cout << loc << endl;
+        lexMachine.doLex();
+        lexMachine.prettyPrint();
+        printf("Compilation succeeded: lexical analysis complete\n");
         
     } else if (!strcmp(argv[1], "-h")) {
         string help_msg = 

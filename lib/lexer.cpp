@@ -6,20 +6,24 @@
 using namespace std;
 using namespace Lex;
 
-// Token(Tokty tok, int loc, string txt) {
-//     tokty = tok;
-//     loc = loc;
-//     text = txt;
-// }
-
-
-
-
 Token::Token(Lex::Tokty tokty, int loc, std::string text):
     tokty(tokty), loc(loc), text(text) {}
-
 Token::Token() = default;
 Token::~Token() = default;
+
+
+string Token::to_string() {
+    switch (tokty) {
+        case NEWLINE:
+            return "NEWLINE\n";
+        case END_OF_FILE:
+            return "END_OF_FILE\n";
+        default:
+            return revTbl.find(tokty)->second + " '" + text + "'\n";
+    }
+}
+
+
 
 Lexer::Lexer(string filename) {
     std::ifstream f(filename);
@@ -27,18 +31,12 @@ Lexer::Lexer(string filename) {
     buf << f.rdbuf();
     file = buf.str();
     fsize = file.length();
-    //tokens.push_back(make_unique<Token>(ARRAY, -1, "e"));
-    cout << "made it" << endl;
 }
 
-int Lexer::goUntil(int pos, char end) {
-    while(file[pos] != end) {
-        if (pos == fsize-1 || !(file[pos] >= 32 && file[pos] <= 126)) {
-            return -1;
-        }
-        pos++;
+void Lexer::prettyPrint() {
+    for (int i = 0; i < tokens.size(); i++) {
+        printf("%s", tokens[i]->to_string().c_str());
     }
-    return pos-1; // -1?
 }
 
 int Lexer::lexWhiteSpc(int pos) {
@@ -49,8 +47,13 @@ int Lexer::lexWhiteSpc(int pos) {
             pos++;
         } else if (file[pos] == '/') {
             if (file[pos+1] == '/'){
-                int res = goUntil(pos, '\n');
-                if (res != -1) {pos += res;}
+                while (pos < fsize && file[pos] != '\n'){
+                    // cout << "/";
+                    pos++;
+                }
+                if(pos == fsize) {
+                    return -1;
+                }
                 if (!hasNL) {
                     hasNL = 1;
                     tokens.push_back(make_unique<Token>(NEWLINE, pos, "NEWLINE"));
@@ -59,6 +62,7 @@ int Lexer::lexWhiteSpc(int pos) {
             } else if (file[pos+1] == '*') {
                 pos += 2;
                 while (pos < fsize) {
+                    // cout << "*";
                     if (pos == fsize-1) {
                         return -1;
                     } 
@@ -86,16 +90,13 @@ int Lexer::lexWhiteSpc(int pos) {
             }
             pos++;
         } else if (pos == fsize-1) {
-            tokens.push_back(make_unique<Token>(END_OF_FILE, pos, "END_OF_FILE"));
+            break;
         } else {
             break;
         }
     }
     return pos;
-
 }
-
-
 
 std::tuple<std::unique_ptr<Lex::Token>, int> Lexer::lexItem(int pos) {
     smatch match;
@@ -105,77 +106,50 @@ std::tuple<std::unique_ptr<Lex::Token>, int> Lexer::lexItem(int pos) {
     regex nt("^[0-9]+");
     regex word("^[a-zA-Z]+[a-zA-Z0-9_\\.]*");
     regex op("^((&&)|(\\|\\|)|(<=)|(>=)|(<)|(>)|(==)|(!=)|(\\+)|(-)|(\\*)|(/)|(%)|(!))");
-    regex st("^\"[ -~]*\"$");
-    regex punct("[\\:\\{\\}\\(\\)\\[\\],=]");
+    regex st("\"[ !#-~]*\""); //TODO: works? ^ needed?
+    regex punct("^[\\:\\{\\}\\(\\)\\[\\],=]");
 
     if (regex_search(curr.begin(), curr.end(), match, fl)) {
-        return make_tuple(make_unique<Token>(FLOATVAL, pos, match[0]), match[0].length());
+        return make_tuple(make_unique<Token>(FLOATVAL, pos, match[0]), match[0].length() + pos);
     } else if (regex_search(curr.begin(), curr.end(), match, nt)) {
-        return make_tuple(make_unique<Token>(INTVAL, pos, match[0]), match[0].length());
+        return make_tuple(make_unique<Token>(INTVAL, pos, match[0]), match[0].length() + pos);
     } else if (regex_search(curr.begin(), curr.end(), match, word)) {
         Tokty t = strToTokty(match[0]); //TODO: ???
         if (t == OP_OR_VAR) {
             t = VARIABLE;
         }
-        return make_tuple(make_unique<Token>(t, pos, match[0]), match[0].length());
+        return make_tuple(make_unique<Token>(t, pos, match[0]), match[0].length() + pos);
     } else if (regex_search(curr.begin(), curr.end(), match, op)) {
-        return make_tuple(make_unique<Token>(OP, pos, match[0]), match[0].length());
+        return make_tuple(make_unique<Token>(OP, pos, match[0]), match[0].length() + pos);
     } else if (regex_search(curr.begin(), curr.end(), match, punct)) {
-        return make_tuple(make_unique<Token>(strToTokty(match[0]), pos, match[0]), match[0].length());        
+        return make_tuple(make_unique<Token>(strToTokty(match[0]), pos, match[0]), match[0].length() + pos);        
     } else if (regex_search(curr.begin(), curr.end(), match, st)) {
-        return make_tuple(make_unique<Token>(STRING, pos, match[0]), match[0].length());
+        return make_tuple(make_unique<Token>(STRING, pos, match[0]), match[0].length() + pos);
     }
     return make_tuple(make_unique<Token>(Token()), -1);
 }
 
-
-
-std::tuple<std::unique_ptr<Lex::Token>, int> Lexer::lexVar(int pos) {
-    regex word("^[a-zA-Z]+[a-zA-Z0-9_\\.]*");
-    smatch match;
-    const string &curr = file.substr(pos);
-    if (regex_search(curr.begin(), curr.end(), match, word)) {
-        Tokty t = strToTokty(match[0]);
-        if (t == OP_OR_VAR) {
-            t = VARIABLE;
-        } 
-        return make_tuple(make_unique<Token>(t, pos, match[0]), match[0].length());
+void Lexer::doLex(){
+    int pos = lexWhiteSpc(0);
+    if (pos == -1) {
+        cout << "Compilation failed!" << endl;
+        exit(-1);
+    }    
+    while (pos < fsize) {
+        unique_ptr<Token> t;
+        int l;
+        tie(t, l) = lexItem(pos);
+        if (l == -1) {
+            cout << "Compilation failed! token invalid" << endl;
+            exit(-1);
+        }
+        tokens.push_back(std::move(t));
+        pos = lexWhiteSpc(l);
+        if (pos == -1) {
+            cout << "Compilation failed! white space invalid" << endl;
+            exit(-1);
+        }
     }
-    return make_tuple(make_unique<Token>(Token()), -1);
+    unique_ptr<Token> eof = make_unique<Token>(END_OF_FILE, fsize-1, "EOF");
+    tokens.push_back(std::move(eof));
 }
-
-
-std::tuple<std::unique_ptr<Lex::Token>, int> Lexer::lexPunct(int pos) {
-    regex punct("[\\:\\{\\}\\(\\)\\[\\],=]");
-    smatch match;
-    const string &curr = file.substr(pos);
-    if (regex_search(curr.begin(), curr.end(), match, punct)) {
-        return make_tuple(make_unique<Token>(strToTokty(match[0]), pos, match[0]), match[0].length());
-    }
-    return make_tuple(make_unique<Token>(Token()), -1);
-}
-
-// std::tuple<std::unique_ptr<Lex::Token>, int> Lexer::lexKeyword(int pos) {
-//     regex keyword("^((array)|(assert)|(bool)|(else)|(false)|(float)|(fn)|(if)|(image)|(int)' \
-//                       '|(let)|(print)|(read)|(return)|(show)|(sum)|(then)|(time)|(to)|(true)|(type)|(write))");
-//     smatch match;
-//     const string &curr = file.substr(pos);
-//     if (regex_search(curr.begin(), curr.end(), match, keyword)) {
-//         return make_tuple(make_unique<Token>(strToTokty(match[0]), pos, match[0]), match[0].length());
-//     }
-//     return make_tuple(make_unique<Token>(Token()), -1);
-// }
-
-std::tuple<std::unique_ptr<Lex::Token>, int> Lexer::lexNum(int pos) {
-    regex fl("(^[0-9]+\\.[0-9]*)|(^[0-9]*\\.[0-9]+)");
-    regex nt("^[0-9]+");
-    smatch match;
-    const string &curr = file.substr(pos);
-    if (regex_search(curr.begin(), curr.end(), match, fl)) {
-        return make_tuple(make_unique<Token>(FLOATVAL, pos, match[0]), match[0].length());
-    } else if (regex_search(curr.begin(), curr.end(), match, nt)) {
-        return make_tuple(make_unique<Token>(INTVAL, pos, match[0]), match[0].length());
-    } 
-    return make_tuple(make_unique<Token>(Token()), -1);
-}
-

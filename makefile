@@ -1,5 +1,6 @@
 
-TEST=-l test.jpl
+TEST=test.jpl
+FLAGS=-l
 
 INCLUDE = ../include/
 CXX=clang++
@@ -17,18 +18,18 @@ compiler.o:
 	$(CXX) $(CXXFLAGS) -c lib/compiler.cpp -o src/compiler.o
 
 a.out: lexer.o compiler.o
-	$(CXX) $(CXXFLAGS) src/compiler.o src/lexer.o -o src/a.out
+	$(CXX) $(CXXFLAGS) src/compiler.o src/lexer.o -o a.out
 
-run: a.out
-	./src/a.out $(TEST)
+run:
+	./a.out $(FLAGS) $(TEST)
 
 
 
-janker: compiler.o
-	$(CXX) $(CXXFLAGS) src/compiler.o -o src/jank.out
+janker: lexer.o compiler.o
+	$(CXX) $(CXXFLAGS) src/compiler.o src/lexer.o -o src/jank
 
-jank: janker
-	./src/jank.out $(TEST)
+jank:
+	./src/jank $(TEST)
 
 clean:
 	rm -f src/*.o src/a.out src/jank
