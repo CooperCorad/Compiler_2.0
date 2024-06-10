@@ -1,6 +1,6 @@
 
 TEST=test.jpl
-FLAGS=-l
+FLAGS=-p
 
 INCLUDE = ../include/
 CXX=clang++
@@ -11,14 +11,17 @@ all: run
 
 compile: compiler.o
 
-lexer.o: lib/lexer.cpp include/lexer.h
+parser.o:
+	$(CXX) $(CXXFLAGS) -c lib/parser.cpp -o src/parser.o
+
+lexer.o: 
 	$(CXX) $(CXXFLAGS) -c lib/lexer.cpp -o src/lexer.o
 
 compiler.o:
 	$(CXX) $(CXXFLAGS) -c lib/compiler.cpp -o src/compiler.o
 
-a.out: lexer.o compiler.o
-	$(CXX) $(CXXFLAGS) src/compiler.o src/lexer.o -o a.out
+a.out: lexer.o parser.o compiler.o
+	$(CXX) $(CXXFLAGS) src/*.o -o a.out
 
 run:
 	./a.out $(FLAGS) $(TEST)

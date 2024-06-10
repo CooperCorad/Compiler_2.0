@@ -30,7 +30,32 @@ Lexer::Lexer(string filename) {
     std::stringstream buf;
     buf << f.rdbuf();
     file = buf.str();
-    fsize = file.length();
+    fsize = file.length();    
+}
+
+void Lexer::doLex(){
+    int pos = lexWhiteSpc(0);
+    if (pos == -1) {
+        cout << "Compilation failed!" << endl;
+        exit(-1);
+    }    
+    while (pos < fsize) {
+        unique_ptr<Token> t;
+        int l;
+        tie(t, l) = lexItem(pos);
+        if (l == -1) {
+            cout << "Compilation failed! token invalid" << endl;
+            exit(-1);
+        }
+        tokens.push_back(std::move(t));
+        pos = lexWhiteSpc(l);
+        if (pos == -1) {
+            cout << "Compilation failed! white space invalid" << endl;
+            exit(-1);
+        }
+    }
+    unique_ptr<Token> eof = make_unique<Token>(END_OF_FILE, fsize-1, "EOF");
+    tokens.push_back(std::move(eof));
 }
 
 void Lexer::prettyPrint() {
@@ -39,7 +64,13 @@ void Lexer::prettyPrint() {
     }
 }
 
-int Lexer::lexWhiteSpc(int pos) {
+std::vector<std::unique_ptr<Lex::Token>> Lex::Lexer::getTokens()
+{
+    return std::vector<std::unique_ptr<Lex::Token>>();
+}
+
+int Lexer::lexWhiteSpc(int pos)
+{
     bool hasNL = 0;
     
     while(pos < fsize) {
@@ -129,27 +160,4 @@ std::tuple<std::unique_ptr<Lex::Token>, int> Lexer::lexItem(int pos) {
     return make_tuple(make_unique<Token>(Token()), -1);
 }
 
-void Lexer::doLex(){
-    int pos = lexWhiteSpc(0);
-    if (pos == -1) {
-        cout << "Compilation failed!" << endl;
-        exit(-1);
-    }    
-    while (pos < fsize) {
-        unique_ptr<Token> t;
-        int l;
-        tie(t, l) = lexItem(pos);
-        if (l == -1) {
-            cout << "Compilation failed! token invalid" << endl;
-            exit(-1);
-        }
-        tokens.push_back(std::move(t));
-        pos = lexWhiteSpc(l);
-        if (pos == -1) {
-            cout << "Compilation failed! white space invalid" << endl;
-            exit(-1);
-        }
-    }
-    unique_ptr<Token> eof = make_unique<Token>(END_OF_FILE, fsize-1, "EOF");
-    tokens.push_back(std::move(eof));
-}
+

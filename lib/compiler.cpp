@@ -1,8 +1,10 @@
 #include <iostream>
 #include "../include/lexer.h"
-#include <regex>
+#include "../include/parser.h"
+
 using namespace std;
 using namespace Lex;
+using namespace Parse;
 
 int main(int argc, char **argv) {
     if (!strcmp(argv[1], "-l")){
@@ -10,13 +12,24 @@ int main(int argc, char **argv) {
         lexMachine.doLex();
         lexMachine.prettyPrint();
         printf("Compilation succeeded: lexical analysis complete\n");
-        
     } else if (!strcmp(argv[1], "-h")) {
         string help_msg = 
-        "./jank [stage flag] [optimizer level] [filename]\
+        "./jank [stage flag] [optimizer level] [in filename] [out filename]\
         \n\tstage flags:\n\t\t -h -> help \n\t\t -l -> lex \n\t\t -p -> parse \n\t\t -c -> compile\
         \n\toptimizer level: -O[1-3]";
         cout << help_msg << endl;
+    } else if (!strcmp(argv[1], "-p")) {
+        Lexer lexMachine = Lexer(argv[2]);
+        lexMachine.doLex();
+        Parser parseMachine = Parser(lexMachine.getTokens());
+        try{
+            parseMachine.doParse();
+        } catch (ParseException &e) {
+            cout << "Compilation failed! " << e.what() << endl;
+            exit(-1);
+        }
+        parseMachine.prettyPrint();
+        printf("Compilation succeeded: parsing complete\n");
     }
 
 

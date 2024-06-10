@@ -1,11 +1,11 @@
 #ifndef _LEX_
-
 #define _LEX_
 
 #include <string>
 #include <vector>
 #include <tuple>
 #include <unordered_map>
+
 namespace Lex
 {
 
@@ -52,7 +52,7 @@ namespace Lex
     };
 
     static std::unordered_map<std::string, Tokty> const tbl = {
-        {"array", ARRAY}, {"assert", ASSERT}, {"bool", BOOL}, {"else", ELSE},
+        {"array", ARRAY}, {"assert", ASSERT}, {"bool", BOOL}, {"else", ELSE}, {"to", TO},
         {"false", FALSE}, {"float", FLOAT}, {"fn", FN}, {"if", IF}, {"image", IMAGE},
         {"int", INT}, {"let", LET}, {"print", PRINT}, {"read", READ}, {"return", RETURN},
         {"show", SHOW}, {"sum", SUM}, {"then", THEN}, {"to", TO}, {"true", TRUE},
@@ -64,7 +64,7 @@ namespace Lex
 
     static std::unordered_map<Tokty, std::string> const revTbl = {
         {ARRAY, "ARRAY"}, {ASSERT, "ASSERT"}, {BOOL, "BOOL"}, {ELSE, "ELSE"}, {TIME, "TIME"},
-        {FALSE, "FALSE"}, {FLOAT, "FLOAT"}, {FN, "FN"}, {IF, "IF"}, {IMAGE, "IMAGE"},
+        {FALSE, "FALSE"}, {FLOAT, "FLOAT"}, {FN, "FN"}, {IF, "IF"}, {IMAGE, "IMAGE"}, {TO, "TO"},
         {INT, "INT"}, {LET, "LET"}, {PRINT, "PRINT"}, {READ, "READ"}, {RETURN, "RETURN"},
         {SHOW, "SHOW"}, {SUM, "SUM"}, {THEN, "THEN"}, {TO, "TO"}, {TRUE, "TRUE"},
         {TYPE, "TYPE"}, {WRITE, "WRITE"}, {COLON, "COLON"}, {LCURLY, "LCURLY"}, {RCURLY, "RCURLY"},
@@ -101,19 +101,19 @@ namespace Lex
     };
 
     class Lexer {
-        public:
+        private:
             std::string file;
             int fsize;
-            std::vector<std::unique_ptr<Lex::Token>> tokens;
+            std::vector<std::unique_ptr<Lex::Token>> tokens; //TODO: move tokens to public or find a way to transfer vector of unique ptrs
 
-            Lexer(std::string);
-
-            std::tuple<std::unique_ptr<Lex::Token>, int> lexVar(int);
             std::tuple<std::unique_ptr<Lex::Token>, int> lexItem(int);
             int lexWhiteSpc(int);
 
+        public:
+            Lexer(std::string);
             void doLex();
             void prettyPrint();
+            std::vector<std::unique_ptr<Lex::Token>> getTokens();
     };      
 
 
