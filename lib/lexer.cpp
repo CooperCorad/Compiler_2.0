@@ -67,7 +67,7 @@ void Lexer::prettyPrint() {
 
 std::vector<std::unique_ptr<Lex::Token>> Lex::Lexer::getTokens()
 {
-    return std::vector<std::unique_ptr<Lex::Token>>();
+    return std::move(tokens);
 }
 
 int Lexer::lexWhiteSpc(int pos)
