@@ -252,6 +252,83 @@ namespace Parse
                 return str + ")";
             }
     };
+    class UnopExpr : public Expr {
+        public:
+            std::string op;
+            std::unique_ptr<Expr> expr;
+
+            UnopExpr(std::string op, std::unique_ptr<Expr> expr) :
+                op(op), expr(std::move(expr)) {}
+            ~UnopExpr() = default;
+
+            std::string to_string() override {
+                return "(UnopExpr " + op + " " + expr->to_string() + ")";
+            }
+    };
+    class BinopExpr : public Expr {
+        public:
+            std::string op;
+            std::unique_ptr<Expr> lExpr;
+            std::unique_ptr<Expr> rExpr;
+
+            BinopExpr(std::string op, std::unique_ptr<Expr> lExpr, std::unique_ptr<Expr> rExpr) :
+                op(op), lExpr(std::move(lExpr)), rExpr(std::move(rExpr)) {}
+            ~BinopExpr() = default;
+
+            std::string to_string() override {
+                return "(BinopExpr " + lExpr->to_string() + " " + op + " " + rExpr->to_string() + ")";
+            }
+    };
+    class IfExpr : public Expr {
+        public:
+            std::unique_ptr<Expr> condExpr;
+            std::unique_ptr<Expr> thenExpr;
+            std::unique_ptr<Expr> elseExpr;
+
+            IfExpr(std::unique_ptr<Expr> condExpr, std::unique_ptr<Expr> thenExpr, std::unique_ptr<Expr> elseExpr) :
+                condExpr(std::move(condExpr)), thenExpr(std::move(thenExpr)), elseExpr(std::move(elseExpr)) {}
+            ~IfExpr() = default;
+
+            std::string to_string() override {
+                return "(IfExpr " + condExpr->to_string() + " " + thenExpr->to_string() + " " + elseExpr->to_string() + ")";
+            }
+    };
+    class ArrayLoopExpr : public Expr {
+        public:
+            std::vector<std::unique_ptr<Variable>> vars;
+            std::vector<std::unique_ptr<Expr>> exprs;
+            std::unique_ptr<Expr> body;
+
+            ArrayLoopExpr(std::vector<std::unique_ptr<Variable>> vars, std::vector<std::unique_ptr<Expr>>exprs, std::unique_ptr<Expr> body) :
+                vars(std::move(vars)), exprs(std::move(exprs)), body(std::move(body)) {}
+            ~ArrayLoopExpr() = default;
+
+            std::string to_string() override {
+                std::string str = "(ArrayLoopExpr";
+                for (int i = 0; i < vars.size(); i++) {
+                    str += " " + vars[i]->to_string() + " " + exprs[i]->to_string();
+                }
+                return str + " " + body->to_string() + ")";
+            }
+    };
+    class SumLoopExpr : public Expr {
+        public:
+            std::vector<std::unique_ptr<Variable>> vars;
+            std::vector<std::unique_ptr<Expr>> exprs;
+            std::unique_ptr<Expr> body;
+
+            SumLoopExpr(std::vector<std::unique_ptr<Variable>> vars, std::vector<std::unique_ptr<Expr>>exprs, std::unique_ptr<Expr> body) :
+                vars(std::move(vars)), exprs(std::move(exprs)), body(std::move(body)) {}
+            ~SumLoopExpr() = default;
+
+            std::string to_string() override {
+                std::string str = "(SumLoopExpr";
+                for (int i = 0; i < vars.size(); i++) {
+                    str += " " + vars[i]->to_string() + " " + exprs[i]->to_string();
+                }
+                return str + " " + body->to_string() + ")";
+            }
+    };
 
 
     class Type : public ASTNode {};
@@ -524,6 +601,8 @@ namespace Parse
         private:
             std::vector<std::unique_ptr<ASTNode>> astTree;
             std::vector<std::unique_ptr<Lex::Token>> tokens;
+            std::vector<std::vector<std::string>> precedence;
+
 
             std::string expectToken(int *, Lex::Tokty);
             Lex::Tokty peekToken(int);
@@ -545,7 +624,20 @@ namespace Parse
             std::pair<std::unique_ptr<Type>, int> parseArrayType(std::unique_ptr<Type>, int);
             std::pair<std::unique_ptr<Type>, int> parseTupleType(int);
 
-
+            std::pair<std::unique_ptr<Expr>, int> parseExprLvl6Cont(std::unique_ptr<Expr>, int);
+            std::pair<std::unique_ptr<Expr>, int> parseExprLvl6(int);
+            std::pair<std::unique_ptr<Expr>, int> parseExprLvl5Cont(std::unique_ptr<Expr>, int);
+            std::pair<std::unique_ptr<Expr>, int> parseExprLvl5(int);
+            std::pair<std::unique_ptr<Expr>, int> parseExprLvl4Cont(std::unique_ptr<Expr>, int);
+            std::pair<std::unique_ptr<Expr>, int> parseExprLvl4(int);
+            std::pair<std::unique_ptr<Expr>, int> parseExprLvl3Cont(std::unique_ptr<Expr>, int);
+            std::pair<std::unique_ptr<Expr>, int> parseExprLvl3(int);
+            std::pair<std::unique_ptr<Expr>, int> parseExprLvl2Cont(std::unique_ptr<Expr>, int);
+            std::pair<std::unique_ptr<Expr>, int> parseExprLvl2(int);
+            std::pair<std::unique_ptr<Expr>, int> parseExprLvl1Cont(std::unique_ptr<Expr>, int);
+            std::pair<std::unique_ptr<Expr>, int> parseExprLvl1(int);
+            std::pair<std::unique_ptr<Expr>, int> parseExpr(int);
+            
             std::pair<std::unique_ptr<Expr>, int> parseLiteralExpr(int);
             std::pair<std::unique_ptr<Expr>, int> parseLiteralExprCont(std::unique_ptr<Expr>, int);
             std::pair<std::unique_ptr<Expr>, int> parseVariableExprCont(std::unique_ptr<Variable>, int);

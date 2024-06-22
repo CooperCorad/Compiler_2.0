@@ -28,11 +28,11 @@ run:
 
 
 
-janker: lexer.o compiler.o
-	$(CXX) $(CXXFLAGS) src/compiler.o src/lexer.o -o src/jank
+janker: lexer.o parser.o compiler.o
+	$(CXX) $(CXXFLAGS) src/compiler.o src/parser.o src/lexer.o -o src/jank
 
 jank:
-	./src/jank $(TEST)
+	./src/jank $(FLAGS) $(TEST)
 
 clean:
-	rm -f src/*.o src/a.out src/jank
+	rm -f src/*.o src/a.out src/jank.out
