@@ -8,6 +8,15 @@
 
 #include "../include/lexer.h"
 
+/*
+    TODO:   1. see if lvl6/cont necessary?
+            2. change all class containers of pts from 
+                unique_ptr -> shared_ptr 
+                for the sake of type checking l8r
+
+*/
+
+
 namespace Parse
 {   
     class ParseException : public std::exception {
