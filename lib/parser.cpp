@@ -329,14 +329,15 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl5Cont(std::unique_ptr<
     //     }
     // }
     // return make_tuple(make_unique<Expr>(tExpr), pos);
-    if (peekToken(pos) == OP) {
+    // cout << inExp->to_string() << endl;
+    if (peekToken(pos) == OP && !inExp->unop) {
         int mbpos = pos;
         string op = expectToken(&mbpos, OP);
         if (find(precedence[5].begin(), precedence[5].end(), op) != precedence[5].end()) {
             //cout << "L5C" << endl;
             unique_ptr<Expr> nExpr;
-            tie(nExpr, pos) = parseExprLvl6(mbpos); //todo pos correct?
-            return parseExprLvl4Cont(make_unique<UnopExpr>(op, std::move(nExpr)), pos);
+            tie(nExpr, pos) = parseExprLvl1Cont(std::move(inExp), mbpos); //todo pos correct?
+            return parseExprLvl5Cont(make_unique<UnopExpr>(op, std::move(nExpr)), pos);
         }
     }
     return make_tuple(std::move(inExp), pos);

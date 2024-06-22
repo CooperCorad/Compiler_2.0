@@ -94,7 +94,10 @@ namespace Parse
     };
 
 
-    class Expr : public ASTNode {};
+    class Expr : public ASTNode {
+        public: 
+            bool unop = false;
+    };
 
     class IntExpr : public Expr {
         public:
@@ -258,7 +261,7 @@ namespace Parse
             std::unique_ptr<Expr> expr;
 
             UnopExpr(std::string op, std::unique_ptr<Expr> expr) :
-                op(op), expr(std::move(expr)) {}
+                op(op), expr(std::move(expr)) { unop = true; }
             ~UnopExpr() = default;
 
             std::string to_string() override {
