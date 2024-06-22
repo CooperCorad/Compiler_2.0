@@ -126,7 +126,7 @@ std::pair<std::unique_ptr<Cmd>, int> Parser::parseLetCmd(int pos) {
     unique_ptr<Expr> expr;
     tie(expr, pos) = parseExpr(pos);
     // tie(expr, pos) = parseLiteralExpr(pos);
-    cout << (typeid(expr) == typeid(unique_ptr<IntExpr>)) << endl;
+    //cout << (typeid(expr) == typeid(unique_ptr<IntExpr>)) << endl;
     return make_tuple(make_unique<LetCmd>(std::move(lval), std::move(expr)), pos);
 }
 
@@ -293,9 +293,9 @@ std::pair<std::vector<std::unique_ptr<Binding>>, int> Parser::parseParameterSequ
     return make_tuple(std::move(parameters), pos);
 }
 
-
+//TODO: lvl6 && lvl6cont may be irrelavent?
 std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl6Cont(std::unique_ptr<Expr> inExp, int pos) {
-    cout << "L6C" << endl;
+    //cout << "L6C" << endl;
     unique_ptr<Expr> expr;
     switch (peekToken(pos)){
         case LCURLY:
@@ -310,7 +310,7 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl6Cont(std::unique_ptr<
 }
 
 std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl6(int pos) {
-    cout << "L6" << endl;
+    //cout << "L6" << endl;
     unique_ptr<Expr> expr;
     tie(expr, pos) = parseLiteralExpr(pos);
     return parseExprLvl6Cont(std::move(expr), pos);
@@ -333,7 +333,7 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl5Cont(std::unique_ptr<
         int mbpos = pos;
         string op = expectToken(&mbpos, OP);
         if (find(precedence[5].begin(), precedence[5].end(), op) != precedence[5].end()) {
-            cout << "L5C" << endl;
+            //cout << "L5C" << endl;
             unique_ptr<Expr> nExpr;
             tie(nExpr, pos) = parseExprLvl6(mbpos); //todo pos correct?
             return parseExprLvl4Cont(make_unique<UnopExpr>(op, std::move(nExpr)), pos);
@@ -343,20 +343,17 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl5Cont(std::unique_ptr<
 }
 
 std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl5(int pos) {
-    // unique_ptr<Expr> expr;
-    // if (peekToken(pos) == OP) {
-    //     int mbpos = pos;
-    //     string op = expectToken(&pos, OP);
-    //     if (find(precedence[5].begin(), precedence[5].end(), op) != precedence[5].end()) {
-    //         tie(expr, pos) = parseExprLvl5(mbpos); //todo pos correct?
-    //         return parseExprLvl5Cont(make_unique<UnopExpr>(op, std::move(expr)), pos);
-    //     }
-    // }
-    // return parseExprLvl6(pos);
-    cout << "L5" << endl;
+    //cout << "L5" << endl;
     unique_ptr<Expr> expr;
-    tie(expr, pos) = parseExprLvl6(pos);
-    return parseExprLvl5Cont(std::move(expr), pos);
+    if (peekToken(pos) == OP) {
+        int mbpos = pos;
+        string op = expectToken(&mbpos, OP);
+        if (find(precedence[5].begin(), precedence[5].end(), op) != precedence[5].end()) {
+            tie(expr, pos) = parseExprLvl5(mbpos); //todo pos correct?
+            return parseExprLvl5Cont(make_unique<UnopExpr>(op, std::move(expr)), pos);
+        }
+    }
+    return parseExprLvl6(pos);
 }
 
 std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl4Cont(std::unique_ptr<Expr> inExp, int pos) {
@@ -364,7 +361,7 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl4Cont(std::unique_ptr<
         int mbpos = pos;
         string op = expectToken(&mbpos, OP);
         if (find(precedence[4].begin(), precedence[4].end(), op) != precedence[4].end()) {
-            cout << "L4C" << endl;
+            //cout << "L4C" << endl;
             unique_ptr<Expr> nExpr;
             tie(nExpr, pos) = parseExprLvl5(mbpos); //todo pos correct?
             return parseExprLvl4Cont(make_unique<BinopExpr>(op, std::move(inExp), std::move(nExpr)), pos);
@@ -374,7 +371,7 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl4Cont(std::unique_ptr<
 }
 
 std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl4(int pos) {
-    cout << "L4" << endl;
+    //cout << "L4" << endl;
     unique_ptr<Expr> expr;
     tie(expr, pos) = parseExprLvl5(pos);
     return parseExprLvl4Cont(std::move(expr), pos);
@@ -385,7 +382,7 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl3Cont(std::unique_ptr<
         int mbpos = pos;
         string op = expectToken(&mbpos, OP);
         if (find(precedence[3].begin(), precedence[3].end(), op) != precedence[3].end()) {
-            cout << "L3C" << endl;
+            //cout << "L3C" << endl;
             unique_ptr<Expr> nExpr;
             tie(nExpr, pos) = parseExprLvl4(mbpos); //todo pos correct?
             return parseExprLvl3Cont(make_unique<BinopExpr>(op, std::move(inExp), std::move(nExpr)), pos);
@@ -395,7 +392,7 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl3Cont(std::unique_ptr<
 }
 
 std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl3(int pos) {
-    cout << "L3" << endl;
+    //cout << "L3" << endl;
     unique_ptr<Expr> expr;
     tie(expr, pos) = parseExprLvl4(pos);
     return parseExprLvl3Cont(std::move(expr), pos);
@@ -406,7 +403,7 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl2Cont(std::unique_ptr<
         int mbpos = pos;
         string op = expectToken(&mbpos, OP);
         if (find(precedence[2].begin(), precedence[2].end(), op) != precedence[2].end()) {
-            cout << "L2C" << endl;
+            //cout << "L2C" << endl;
             unique_ptr<Expr> nExpr;
             tie(nExpr, pos) = parseExprLvl3(mbpos); //todo pos correct?
             return parseExprLvl2Cont(make_unique<BinopExpr>(op, std::move(inExp), std::move(nExpr)), pos);
@@ -416,7 +413,7 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl2Cont(std::unique_ptr<
 }
 
 std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl2(int pos) {
-    cout << "L2" << endl;
+    //cout << "L2" << endl;
     unique_ptr<Expr> expr;
     tie(expr, pos) = parseExprLvl3(pos);
     return parseExprLvl2Cont(std::move(expr), pos);
@@ -427,7 +424,7 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl1Cont(std::unique_ptr<
         int mbpos = pos;
         string op = expectToken(&mbpos, OP);
         if (find(precedence[1].begin(), precedence[1].end(), op) != precedence[1].end()) {
-        cout << "L1C" << endl;
+        //cout << "L1C" << endl;
             unique_ptr<Expr> nExpr;
             tie(nExpr, pos) = parseExprLvl2(mbpos); //todo pos correct?
             return parseExprLvl1Cont(make_unique<BinopExpr>(op, std::move(inExp), std::move(nExpr)), pos);
@@ -437,7 +434,7 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl1Cont(std::unique_ptr<
 }
 
 std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl1(int pos) {
-    cout << "L1" << endl;
+    //cout << "L1" << endl;
     unique_ptr<Expr> expr;
     tie(expr, pos) = parseExprLvl2(pos);
     return parseExprLvl1Cont(std::move(expr), pos);
@@ -480,6 +477,12 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseLiteralExpr(int pos) {
             tie(exp, pos) = parseExpr(pos);
             expectToken(&pos, RPAREN);
             return parseLiteralExprCont(std::move(exp), pos);
+        case ARRAY:
+            return parseArrayLoopExpr(pos);
+        case SUM:
+            return parseSumLoopExpr(pos);
+        case IF:
+            return parseIfExpr(pos);
         default:
             throw ParseException("expected an expression, got: " + tokens[pos]->text + " at: " + to_string(tokens[pos]->loc));
 
@@ -495,6 +498,73 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseLiteralExprCont(std::unique_p
         default:
             return make_tuple(std::move(inExp), pos);
     }
+}
+
+std::tuple<std::vector<std::unique_ptr<Variable>>, std::vector<std::unique_ptr<Expr>>, int> Parser::parseLoopBinds(int pos) {
+    vector<unique_ptr<Variable>> vars;
+    unique_ptr<Variable> var;
+    vector<unique_ptr<Expr>> exprs;
+    unique_ptr<Expr> expr;
+    
+    expectToken(&pos, LSQUARE);
+    while(1) {
+        if (peekToken(pos) == RSQUARE) {
+            break;
+        }
+
+        tie(var, pos) = parseVariable(pos);
+        expectToken(&pos, COLON);
+        tie(expr, pos) = parseExpr(pos);
+        vars.push_back(std::move(var));
+        exprs.push_back(std::move(expr));
+
+        if (peekToken(pos) != RSQUARE) {
+            expectToken(&pos, COMMA);
+            if (peekToken(pos) == RSQUARE) {
+                throw ParseException("You cannot have a dangling comma at " + to_string(pos));
+            }
+        }
+    }
+    expectToken(&pos, RSQUARE);
+    return make_tuple(std::move(vars), std::move(exprs), pos);
+}
+
+
+std::pair<std::unique_ptr<Expr>, int> Parser::parseArrayLoopExpr(int pos) {
+    vector<unique_ptr<Variable>> vars;
+    vector<unique_ptr<Expr>> exprs;
+    unique_ptr<Expr> bExpr;
+
+    expectToken(&pos, ARRAY);
+    tie(vars, exprs, pos) = parseLoopBinds(pos);
+    tie(bExpr, pos) = parseExpr(pos);
+    return make_tuple(make_unique<ArrayLoopExpr>(std::move(vars), std::move(exprs), std::move(bExpr)), pos);
+}
+
+std::pair<std::unique_ptr<Expr>, int> Parser::parseSumLoopExpr(int pos) {
+    vector<unique_ptr<Variable>> vars;
+    vector<unique_ptr<Expr>> exprs;
+    unique_ptr<Expr> bExpr;
+
+    expectToken(&pos, SUM);
+    tie(vars, exprs, pos) = parseLoopBinds(pos);
+    tie(bExpr, pos) = parseExpr(pos);
+    return make_tuple(make_unique<SumLoopExpr>(std::move(vars), std::move(exprs), std::move(bExpr)), pos);
+}
+
+std::pair<std::unique_ptr<Expr>, int> Parser::parseIfExpr(int pos) {
+    unique_ptr<Expr> condExpr;
+    unique_ptr<Expr> thenExpr;
+    unique_ptr<Expr> elseExpr;
+
+    expectToken(&pos, IF);
+    tie(condExpr, pos) = parseExpr(pos);
+    expectToken(&pos, THEN);
+    tie(thenExpr, pos) = parseExpr(pos);
+    expectToken(&pos, ELSE);
+    tie(elseExpr, pos) = parseExpr(pos);
+
+    return make_tuple(make_unique<IfExpr>(std::move(condExpr), std::move(thenExpr), std::move(elseExpr)), pos);
 }
 
 std::pair<std::unique_ptr<Expr>, int> Parser::parseVariableExprCont(std::unique_ptr<Variable> inVar, int pos) {

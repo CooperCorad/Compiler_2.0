@@ -624,6 +624,10 @@ namespace Parse
             std::pair<std::unique_ptr<Type>, int> parseArrayType(std::unique_ptr<Type>, int);
             std::pair<std::unique_ptr<Type>, int> parseTupleType(int);
 
+            std::tuple<std::vector<std::unique_ptr<Variable>>, std::vector<std::unique_ptr<Expr>>, int> parseLoopBinds(int);
+            std::pair<std::unique_ptr<Expr>, int> parseArrayLoopExpr(int);
+            std::pair<std::unique_ptr<Expr>, int> parseSumLoopExpr(int);
+            std::pair<std::unique_ptr<Expr>, int> parseIfExpr(int);
             std::pair<std::unique_ptr<Expr>, int> parseExprLvl6Cont(std::unique_ptr<Expr>, int);
             std::pair<std::unique_ptr<Expr>, int> parseExprLvl6(int);
             std::pair<std::unique_ptr<Expr>, int> parseExprLvl5Cont(std::unique_ptr<Expr>, int);
