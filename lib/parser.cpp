@@ -336,7 +336,7 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseExprLvl5Cont(std::unique_ptr<
         if (find(precedence[5].begin(), precedence[5].end(), op) != precedence[5].end()) {
             //cout << "L5C" << endl;
             unique_ptr<Expr> nExpr;
-            tie(nExpr, pos) = parseExprLvl1Cont(std::move(inExp), mbpos); //todo pos correct?
+            tie(nExpr, pos) = parseExprLvl6(mbpos); //todo pos correct?
             return parseExprLvl5Cont(make_unique<UnopExpr>(op, std::move(nExpr)), pos);
         }
     }
