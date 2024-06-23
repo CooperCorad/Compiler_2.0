@@ -4,14 +4,15 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <algorithm>
 #include <regex>
 
 #include "../include/lexer.h"
 
 /*
     TODO:   1. see if lvl6/cont necessary?
-            2. change all class containers of pts from 
-                unique_ptr -> shared_ptr 
+            DONE 2. change all class containers of pts from 
+                shared_ptr -> shared_ptr 
                 for the sake of type checking l8r
 
 */
@@ -49,7 +50,7 @@ namespace Parse
 
     class VarArgument : public Argument {
         public:
-            std::unique_ptr<Variable> variable;
+            std::shared_ptr<Variable> variable;
             VarArgument(std::unique_ptr<Variable> variable) :
                 variable(std::move(variable)) {}
             ~VarArgument() override = default;
@@ -60,7 +61,7 @@ namespace Parse
     };
     class ArgLValue : public Argument {
         public:
-            std::unique_ptr<Argument> varArg;
+            std::shared_ptr<Argument> varArg;
             ArgLValue(std::unique_ptr<Argument> varArg) :
                 varArg(std::move(varArg)) {}
             ~ArgLValue() = default;
@@ -70,10 +71,13 @@ namespace Parse
     }; // TODO: move to LValue class?
     class TupleLValue : public Argument {
         public:
-            std::vector<std::unique_ptr<Argument>> args;
+            std::vector<std::shared_ptr<Argument>> args;
 
-            TupleLValue(std::vector<std::unique_ptr<Argument>> args) :
-                args(std::move(args)) {}
+            TupleLValue(std::vector<std::unique_ptr<Argument>> inArgs) {
+                args.insert(args.end(),
+                    std::make_move_iterator(inArgs.begin()),
+                    std::make_move_iterator(inArgs.end()));
+            }
             ~TupleLValue() = default;
 
             std::string to_string() override {
@@ -86,11 +90,15 @@ namespace Parse
     };
     class ArrayArgument : public Argument {
         public:
-            std::unique_ptr<Variable> var;
-            std::vector<std::unique_ptr<Variable>> vars;
+            std::shared_ptr<Variable> var;
+            std::vector<std::shared_ptr<Variable>> vars;
 
-            ArrayArgument(std::unique_ptr<Variable> var, std::vector<std::unique_ptr<Variable>> vars) :
-                var(std::move(var)), vars(std::move(vars)) {}
+            ArrayArgument(std::unique_ptr<Variable> var, std::vector<std::unique_ptr<Variable>> inVars) :
+                var(std::move(var)) {
+                    vars.insert(vars.end(),
+                    std::make_move_iterator(inVars.begin()),
+                    std::make_move_iterator(inVars.end()));
+                }
             ~ArrayArgument() = default;
 
             std::string to_string() override {
@@ -103,10 +111,7 @@ namespace Parse
     };
 
 
-    class Expr : public ASTNode {
-        public: 
-            bool unop = false;
-    };
+    class Expr : public ASTNode { };
 
     class IntExpr : public Expr {
         public:
@@ -162,7 +167,7 @@ namespace Parse
     };
     class VarExpr : public Expr {
         public:
-            std::unique_ptr<Variable> var;
+            std::shared_ptr<Variable> var;
 
             VarExpr(std::unique_ptr<Variable> var) :
                 var(std::move(var)) {}
@@ -185,10 +190,13 @@ namespace Parse
     };
     class TupleLiteralExpr : public Expr {
         public:
-            std::vector<std::unique_ptr<Expr>> exprs;
+            std::vector<std::shared_ptr<Expr>> exprs;
 
-            TupleLiteralExpr(std::vector<std::unique_ptr<Expr>> exprs) :
-                exprs(std::move(exprs)) {}
+            TupleLiteralExpr(std::vector<std::unique_ptr<Expr>> inExprs) {
+                exprs.insert(exprs.end(),
+                    std::make_move_iterator(inExprs.begin()),
+                    std::make_move_iterator(inExprs.end()));
+            }
             ~TupleLiteralExpr() = default;
             
             std::string to_string() override {
@@ -202,10 +210,13 @@ namespace Parse
     };
     class ArrayLiteralExpr : public Expr {
         public:
-            std::vector<std::unique_ptr<Expr>> exprs;
+            std::vector<std::shared_ptr<Expr>> exprs;
 
-            ArrayLiteralExpr(std::vector<std::unique_ptr<Expr>> exprs) :
-                exprs(std::move(exprs)) {}
+            ArrayLiteralExpr(std::vector<std::unique_ptr<Expr>> inExprs) {
+                exprs.insert(exprs.end(),
+                    std::make_move_iterator(inExprs.begin()),
+                    std::make_move_iterator(inExprs.end()));
+            }
             ~ArrayLiteralExpr() = default;
 
             std::string to_string() override {
@@ -218,7 +229,7 @@ namespace Parse
     };
     class TupleIndexExpr : public Expr {
         public:
-            std::unique_ptr<Expr> expr;
+            std::shared_ptr<Expr> expr;
             std::string index;
 
             TupleIndexExpr(std::unique_ptr<Expr> expr, std::string index) :
@@ -232,11 +243,15 @@ namespace Parse
     };
     class ArrayIndexExpr : public Expr {
         public:
-            std::unique_ptr<Expr> expr;
-            std::vector<std::unique_ptr<Expr>> indices;
+            std::shared_ptr<Expr> expr;
+            std::vector<std::shared_ptr<Expr>> indices;
 
-            ArrayIndexExpr(std::unique_ptr<Expr> expr, std::vector<std::unique_ptr<Expr>> indices) :
-                expr(std::move(expr)), indices(std::move(indices)) {}
+            ArrayIndexExpr(std::unique_ptr<Expr> expr, std::vector<std::unique_ptr<Expr>> inIndices) :
+                expr(std::move(expr)) {
+                    indices.insert(indices.end(),
+                        std::make_move_iterator(inIndices.begin()),
+                        std::make_move_iterator(inIndices.end()));
+                }
             ~ArrayIndexExpr() = default;
 
             std::string to_string() override {
@@ -249,11 +264,15 @@ namespace Parse
     };
     class CallExpr : public Expr {
         public:
-            std::unique_ptr<Variable> var;
-            std::vector<std::unique_ptr<Expr>> parameters;
+            std::shared_ptr<Variable> var;
+            std::vector<std::shared_ptr<Expr>> parameters;
 
-            CallExpr(std::unique_ptr<Variable> var, std::vector<std::unique_ptr<Expr>> parameters) :
-                var(std::move(var)), parameters(std::move(parameters)) {}
+            CallExpr(std::unique_ptr<Variable> var, std::vector<std::unique_ptr<Expr>> inParameters) :
+                var(std::move(var)) {
+                    parameters.insert(parameters.end(),
+                        std::make_move_iterator(inParameters.begin()),
+                        std::make_move_iterator(inParameters.end()));
+                }
             ~CallExpr() = default;
 
             std::string to_string() override {
@@ -267,10 +286,10 @@ namespace Parse
     class UnopExpr : public Expr {
         public:
             std::string op;
-            std::unique_ptr<Expr> expr;
+            std::shared_ptr<Expr> expr;
 
             UnopExpr(std::string op, std::unique_ptr<Expr> expr) :
-                op(op), expr(std::move(expr)) { unop = true; }
+                op(op), expr(std::move(expr)) {}
             ~UnopExpr() = default;
 
             std::string to_string() override {
@@ -280,8 +299,8 @@ namespace Parse
     class BinopExpr : public Expr {
         public:
             std::string op;
-            std::unique_ptr<Expr> lExpr;
-            std::unique_ptr<Expr> rExpr;
+            std::shared_ptr<Expr> lExpr;
+            std::shared_ptr<Expr> rExpr;
 
             BinopExpr(std::string op, std::unique_ptr<Expr> lExpr, std::unique_ptr<Expr> rExpr) :
                 op(op), lExpr(std::move(lExpr)), rExpr(std::move(rExpr)) {}
@@ -293,9 +312,9 @@ namespace Parse
     };
     class IfExpr : public Expr {
         public:
-            std::unique_ptr<Expr> condExpr;
-            std::unique_ptr<Expr> thenExpr;
-            std::unique_ptr<Expr> elseExpr;
+            std::shared_ptr<Expr> condExpr;
+            std::shared_ptr<Expr> thenExpr;
+            std::shared_ptr<Expr> elseExpr;
 
             IfExpr(std::unique_ptr<Expr> condExpr, std::unique_ptr<Expr> thenExpr, std::unique_ptr<Expr> elseExpr) :
                 condExpr(std::move(condExpr)), thenExpr(std::move(thenExpr)), elseExpr(std::move(elseExpr)) {}
@@ -307,12 +326,19 @@ namespace Parse
     };
     class ArrayLoopExpr : public Expr {
         public:
-            std::vector<std::unique_ptr<Variable>> vars;
-            std::vector<std::unique_ptr<Expr>> exprs;
-            std::unique_ptr<Expr> body;
+            std::vector<std::shared_ptr<Variable>> vars;
+            std::vector<std::shared_ptr<Expr>> exprs;
+            std::shared_ptr<Expr> body;
 
-            ArrayLoopExpr(std::vector<std::unique_ptr<Variable>> vars, std::vector<std::unique_ptr<Expr>>exprs, std::unique_ptr<Expr> body) :
-                vars(std::move(vars)), exprs(std::move(exprs)), body(std::move(body)) {}
+            ArrayLoopExpr(std::vector<std::unique_ptr<Variable>> inVars, std::vector<std::unique_ptr<Expr>> inExprs, std::unique_ptr<Expr> body) :
+                body(std::move(body)) {
+                    vars.insert(vars.end(),
+                        std::make_move_iterator(inVars.begin()),
+                        std::make_move_iterator(inVars.end()));
+                    exprs.insert(exprs.end(),
+                        std::make_move_iterator(inExprs.begin()),
+                        std::make_move_iterator(inExprs.end()));
+                }
             ~ArrayLoopExpr() = default;
 
             std::string to_string() override {
@@ -325,12 +351,19 @@ namespace Parse
     };
     class SumLoopExpr : public Expr {
         public:
-            std::vector<std::unique_ptr<Variable>> vars;
-            std::vector<std::unique_ptr<Expr>> exprs;
-            std::unique_ptr<Expr> body;
+            std::vector<std::shared_ptr<Variable>> vars;
+            std::vector<std::shared_ptr<Expr>> exprs;
+            std::shared_ptr<Expr> body;
 
-            SumLoopExpr(std::vector<std::unique_ptr<Variable>> vars, std::vector<std::unique_ptr<Expr>>exprs, std::unique_ptr<Expr> body) :
-                vars(std::move(vars)), exprs(std::move(exprs)), body(std::move(body)) {}
+            SumLoopExpr(std::vector<std::unique_ptr<Variable>> inVars, std::vector<std::unique_ptr<Expr>> inExprs, std::unique_ptr<Expr> body) :
+                body(std::move(body)) {
+                    vars.insert(vars.end(),
+                        std::make_move_iterator(inVars.begin()),
+                        std::make_move_iterator(inVars.end()));
+                    exprs.insert(exprs.end(),
+                        std::make_move_iterator(inExprs.begin()),
+                        std::make_move_iterator(inExprs.end()));
+                }
             ~SumLoopExpr() = default;
 
             std::string to_string() override {
@@ -371,7 +404,7 @@ namespace Parse
     };
     class VarType : public Type {
         public:
-            std::unique_ptr<Variable> var;
+            std::shared_ptr<Variable> var;
 
             VarType(std::unique_ptr<Variable> var) :
                 var(std::move(var)) {}
@@ -383,7 +416,7 @@ namespace Parse
     };
     class ArrayType : public Type {
         public:
-            std::unique_ptr<Type> ty;
+            std::shared_ptr<Type> ty;
             int dimension;
 
             ArrayType(std::unique_ptr<Type> ty, int dimension) :
@@ -396,10 +429,13 @@ namespace Parse
     };
     class TupleType : public Type {
         public:    
-            std::vector<std::unique_ptr<Type>> tys;
+            std::vector<std::shared_ptr<Type>> tys;
 
-            TupleType(std::vector<std::unique_ptr<Type>> tys) :
-                tys(std::move(tys)) {}
+            TupleType(std::vector<std::unique_ptr<Type>> inTys) {
+                tys.insert(tys.end(),
+                    std::make_move_iterator(inTys.begin()),
+                    std::make_move_iterator(inTys.end()));
+            }
             ~TupleType() = default;
 
             std::string to_string() override {
@@ -417,8 +453,8 @@ namespace Parse
 
     class VarBinding : public Binding {
         public:
-            std::unique_ptr<Argument> arg;
-            std::unique_ptr<Type> ty;
+            std::shared_ptr<Argument> arg;
+            std::shared_ptr<Type> ty;
 
             VarBinding(std::unique_ptr<Argument> arg, std::unique_ptr<Type> ty) :
                 arg(std::move(arg)), ty(std::move(ty)) {}
@@ -430,10 +466,13 @@ namespace Parse
     };
     class TupleBinding : public Binding {
         public:
-            std::vector<std::unique_ptr<Binding>> bindings;
+            std::vector<std::shared_ptr<Binding>> bindings;
 
-            TupleBinding(std::vector<std::unique_ptr<Binding>> bindings) :
-                bindings(std::move(bindings)) {}
+            TupleBinding(std::vector<std::unique_ptr<Binding>> inBindings) {
+                bindings.insert(bindings.end(),
+                    std::make_move_iterator(inBindings.begin()),
+                    std::make_move_iterator(inBindings.end()));
+            }
             ~TupleBinding() = default;
 
             std::string to_string() override {
@@ -450,8 +489,8 @@ namespace Parse
 
     class LetStmt : public Stmt {
         public:
-            std::unique_ptr<Argument> lval;
-            std::unique_ptr<Expr> expr;
+            std::shared_ptr<Argument> lval;
+            std::shared_ptr<Expr> expr;
 
             LetStmt(std::unique_ptr<Argument> lval, std::unique_ptr<Expr> expr) :
                 lval(std::move(lval)), expr(std::move(expr)) {}
@@ -462,7 +501,7 @@ namespace Parse
     };
     class AssertStmt : public Stmt {
         public:
-            std::unique_ptr<Expr> expr;
+            std::shared_ptr<Expr> expr;
             std::string str;
             AssertStmt(std::unique_ptr<Expr> expr, std::string str) :
                 expr(std::move(expr)), str(str) {}
@@ -473,7 +512,7 @@ namespace Parse
     };
     class ReturnStmt : public Stmt {
         public:
-            std::unique_ptr<Expr> retExp;
+            std::shared_ptr<Expr> retExp;
 
             ReturnStmt(std::unique_ptr<Expr> retExp) :
                 retExp(std::move(retExp)) {}
@@ -490,7 +529,7 @@ namespace Parse
     class ReadCmd : public Cmd {
         public:
             std::string file;
-            std::unique_ptr<Argument> varArg;
+            std::shared_ptr<Argument> varArg;
 
             ReadCmd(std::string file, std::unique_ptr<Argument> varArg) :
                 file(file), varArg(std::move(varArg)) {}
@@ -501,7 +540,7 @@ namespace Parse
             }
     };
     class WriteCmd : public Cmd {
-        std::unique_ptr<Expr> exp;
+        std::shared_ptr<Expr> exp;
         std::string str;
         public:
             WriteCmd(std::unique_ptr<Expr> exp, std::string str) :
@@ -514,8 +553,8 @@ namespace Parse
     };
     class TypeCmd : public Cmd {
         public:
-            std::unique_ptr<Variable> var;
-            std::unique_ptr<Type> ty;
+            std::shared_ptr<Variable> var;
+            std::shared_ptr<Type> ty;
 
             TypeCmd(std::unique_ptr<Variable> var, std::unique_ptr<Type> ty) :
                 var(std::move(var)), ty(std::move(ty)) {}
@@ -527,8 +566,8 @@ namespace Parse
     };
     class LetCmd : public Cmd {
         public:
-            std::unique_ptr<Argument> lval;
-            std::unique_ptr<Expr> expr;
+            std::shared_ptr<Argument> lval;
+            std::shared_ptr<Expr> expr;
 
             LetCmd(std::unique_ptr<Argument> lval, std::unique_ptr<Expr> expr) :
                 lval(std::move(lval)), expr(std::move(expr)) {}
@@ -539,7 +578,7 @@ namespace Parse
     };
     class AssertCmd : public Cmd {
         public:
-            std::unique_ptr<Expr> expr;
+            std::shared_ptr<Expr> expr;
             std::string str;
             AssertCmd(std::unique_ptr<Expr> expr, std::string str) :
                 expr(std::move(expr)), str(str) {}
@@ -561,7 +600,7 @@ namespace Parse
     };
     class ShowCmd : public Cmd {
         public:
-            std::unique_ptr<Expr> expr;
+            std::shared_ptr<Expr> expr;
             ShowCmd(std::unique_ptr<Expr> expr) :
                 expr(std::move(expr)) {}
             ~ShowCmd() = default;
@@ -571,7 +610,7 @@ namespace Parse
     };
     class TimeCmd : public Cmd {
         public:
-            std::unique_ptr<Cmd> cmd;
+            std::shared_ptr<Cmd> cmd;
 
             TimeCmd(std::unique_ptr<Cmd> cmd) :
                 cmd(std::move(cmd)) {}
@@ -583,15 +622,21 @@ namespace Parse
     };
     class FnCmd : public Cmd {
         public:
-            std::unique_ptr<Variable> var;
-            std::vector<std::unique_ptr<Binding>> bindings;
-            std::unique_ptr<Type> retTy;
-            std::vector<std::unique_ptr<Stmt>> statements;
+            std::shared_ptr<Variable> var;
+            std::vector<std::shared_ptr<Binding>> bindings;
+            std::shared_ptr<Type> retTy;
+            std::vector<std::shared_ptr<Stmt>> statements;
 
-            FnCmd(std::unique_ptr<Variable> var, std::vector<std::unique_ptr<Binding>> bindings,
-            std::unique_ptr<Type> retTy, std::vector<std::unique_ptr<Stmt>> statements) : 
-                var(std::move(var)), bindings(std::move(bindings)), 
-                retTy(std::move(retTy)), statements(std::move(statements)) {}
+            FnCmd(std::unique_ptr<Variable> var, std::vector<std::unique_ptr<Binding>> inBindings,
+            std::unique_ptr<Type> retTy, std::vector<std::unique_ptr<Stmt>> inStatements) : 
+                var(std::move(var)), retTy(std::move(retTy)) {
+                    bindings.insert(bindings.end(),
+                        std::make_move_iterator(inBindings.begin()),
+                        std::make_move_iterator(inBindings.end()));
+                    statements.insert(statements.end(),
+                        std::make_move_iterator(inStatements.begin()),
+                        std::make_move_iterator(inStatements.end()));
+                }
             ~FnCmd() = default;
 
             std::string to_string() override {
@@ -611,7 +656,7 @@ namespace Parse
 
     class Parser {
         private:
-            std::vector<std::unique_ptr<ASTNode>> astTree;
+            std::vector<std::shared_ptr<ASTNode>> astTree;
             std::vector<std::unique_ptr<Lex::Token>> tokens;
             std::vector<std::vector<std::string>> precedence;
 

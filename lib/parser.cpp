@@ -36,7 +36,7 @@ Tokty Parser::peekToken(int pos) {
 }
 
 void Parser::prettyPrint() {
-    for (const unique_ptr<ASTNode> &node : astTree) {
+    for (const shared_ptr<ASTNode> &node : astTree) {
         cout << node->to_string() << endl;
     }
     cout << "Compilation succeeded: parsing complete\n";
@@ -425,20 +425,20 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseLiteralExpr(int pos) {
     switch (peekToken(pos)) {
         case INTVAL:
             vStr = expectToken(&pos, INTVAL);
-            return parseLiteralExprCont(make_unique<IntExpr>(vStr), pos);
+            return make_tuple(make_unique<IntExpr>(vStr), pos);
         case FLOATVAL:
             vStr = expectToken(&pos, FLOATVAL);
-            return parseLiteralExprCont(make_unique<FloatExpr>(vStr), pos);
+            return make_tuple(make_unique<FloatExpr>(vStr), pos);
         case TRUE:
-            return parseLiteralExprCont(make_unique<TrueExpr>(), ++pos);
+            return make_tuple(make_unique<TrueExpr>(), ++pos);
         case FALSE:
-            return parseLiteralExprCont(make_unique<FalseExpr>(), ++pos);
+            return make_tuple(make_unique<FalseExpr>(), ++pos);
         case VARIABLE:
             tie(var, pos) = parseVariable(pos);
             if (peekToken(pos) == LPAREN) {
                 return parseVariableExprCont(std::move(var), pos);
             }
-            return parseLiteralExprCont(make_unique<VarExpr>(std::move(var)), pos);
+            return make_tuple(make_unique<VarExpr>(std::move(var)), pos);
         case LCURLY:
              return parseTupleLiteralExpr(pos);
         case LSQUARE:
@@ -447,7 +447,7 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseLiteralExpr(int pos) {
             expectToken(&pos, LPAREN);
             tie(exp, pos) = parseExpr(pos);
             expectToken(&pos, RPAREN);
-            return parseLiteralExprCont(std::move(exp), pos);
+            return make_tuple(std::move(exp), pos);
         case ARRAY:
             return parseArrayLoopExpr(pos);
         case SUM:
@@ -541,20 +541,20 @@ std::pair<std::unique_ptr<Expr>, int> Parser::parseIfExpr(int pos) {
 std::pair<std::unique_ptr<Expr>, int> Parser::parseVariableExprCont(std::unique_ptr<Variable> inVar, int pos) {
     vector<unique_ptr<Expr>> parameters;
     tie(parameters, pos) = parseExprSequence(pos, LPAREN, RPAREN);
-    return parseLiteralExprCont(make_unique<CallExpr>(std::move(inVar), std::move(parameters)), pos);
+    return make_tuple(make_unique<CallExpr>(std::move(inVar), std::move(parameters)), pos);
 }
 
 std::pair<std::unique_ptr<Expr>, int> Parser::parseTupleIndexExpr(std::unique_ptr<Expr> inExp, int pos) {
     expectToken(&pos, LCURLY);
     string index = expectToken(&pos, INTVAL);
     expectToken(&pos, RCURLY);
-    return parseLiteralExprCont(make_unique<TupleIndexExpr>(std::move(inExp), index), pos);
+    return make_tuple(make_unique<TupleIndexExpr>(std::move(inExp), index), pos);
 }
 
 std::pair<std::unique_ptr<Expr>, int> Parser::parseArrayIndexExpr(std::unique_ptr<Expr> inExp, int pos) {
     vector<unique_ptr<Expr>> indices;
     tie(indices, pos) = parseExprSequence(pos, LSQUARE, RSQUARE);
-    return parseLiteralExprCont(make_unique<ArrayIndexExpr>(std::move(inExp), std::move(indices)), pos);
+    return make_tuple(make_unique<ArrayIndexExpr>(std::move(inExp), std::move(indices)), pos);
 }
 
 std::pair<std::vector<std::unique_ptr<Expr>>, int>  Parser::parseExprSequence(int pos, Lex::Tokty start, Lex::Tokty end) {
@@ -582,13 +582,13 @@ std::pair<std::vector<std::unique_ptr<Expr>>, int>  Parser::parseExprSequence(in
 std::pair<std::unique_ptr<Expr>, int> Parser::parseArrayLiteralExpr(int pos) {
     vector<unique_ptr<Expr>> expList;
     tie(expList, pos) = parseExprSequence(pos, LSQUARE, RSQUARE);
-    return parseLiteralExprCont(make_unique<ArrayLiteralExpr>(std::move(expList)), pos);
+    return make_tuple(make_unique<ArrayLiteralExpr>(std::move(expList)), pos);
 }
 
 std::pair<std::unique_ptr<Expr>, int> Parser::parseTupleLiteralExpr(int pos) {
     vector<unique_ptr<Expr>> expList;
     tie(expList, pos) = parseExprSequence(pos, LCURLY, RCURLY);
-    return parseLiteralExprCont(make_unique<TupleLiteralExpr>(std::move(expList)), pos);
+    return make_tuple(make_unique<TupleLiteralExpr>(std::move(expList)), pos);
 }
 
 
